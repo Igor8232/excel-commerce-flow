@@ -1,5 +1,4 @@
 
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/store/useStore';
 import { Badge } from '@/components/ui/badge';
@@ -15,17 +14,19 @@ const Dashboard = () => {
     loadData();
   }, [loadData]);
   
+  // Obter dados sincronizados - ÚNICA FONTE DE VERDADE
   const data = getDashboardData();
   const estoqueBaixo = getEstoqueBaixo();
   const saldoSincronizado = calculateSaldo();
 
-  console.log('Renderizando dashboard com dados:', data);
+  console.log('Renderizando dashboard com dados sincronizados:', data);
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | undefined | null) => {
+    const safeValue = Number(value) || 0;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(safeValue);
   };
 
   return (
@@ -44,7 +45,9 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(saldoSincronizado)}</div>
+            <div className={`text-2xl font-bold ${saldoSincronizado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(saldoSincronizado)}
+            </div>
             <p className="text-xs text-muted-foreground">
               Entradas + Bônus - Despesas + Lucros
             </p>
@@ -112,7 +115,7 @@ const Dashboard = () => {
             <AlertTriangle className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{data.produtos_estoque_baixo}</div>
+            <div className="text-2xl font-bold text-yellow-600">{data.produtos_estoque_baixo || 0}</div>
             <p className="text-xs text-muted-foreground">
               Produtos precisando reposição
             </p>
@@ -125,7 +128,7 @@ const Dashboard = () => {
             <Package className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{data.eventos_proximos}</div>
+            <div className="text-2xl font-bold text-purple-600">{data.eventos_proximos || 0}</div>
             <p className="text-xs text-muted-foreground">
               Eventos nos próximos 7 dias
             </p>
@@ -147,9 +150,9 @@ const Dashboard = () => {
               {estoqueBaixo.map((produto) => (
                 <div key={produto.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                   <div>
-                    <p className="font-medium">{produto.nome}</p>
+                    <p className="font-medium">{produto.nome || 'Produto sem nome'}</p>
                     <p className="text-sm text-gray-600">
-                      Estoque atual: {produto.estoque_atual} | Mínimo: {produto.estoque_minimo}
+                      Estoque atual: {produto.estoque_atual || 0} | Mínimo: {produto.estoque_minimo || 0}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-yellow-700 border-yellow-300">

@@ -1,5 +1,4 @@
 
-
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -23,11 +22,25 @@ const DespesasEntradas = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação de dados
+    if (!formData.descricao.trim()) {
+      alert('Descrição é obrigatória');
+      return;
+    }
+    
+    const valor = Number(formData.valor);
+    if (isNaN(valor) || valor <= 0) {
+      alert('Valor deve ser um número válido maior que zero');
+      return;
+    }
+    
     addDespesaEntrada({
       ...formData,
-      valor: parseFloat(formData.valor),
+      valor,
       data_registro: new Date().toISOString().split('T')[0],
     });
+    
     setFormData({
       tipo: 'Entradas',
       descricao: '',
@@ -37,11 +50,12 @@ const DespesasEntradas = () => {
     setIsDialogOpen(false);
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | undefined | null) => {
+    const safeValue = Number(value) || 0;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(safeValue);
   };
 
   const getIcon = (tipo: string) => {
@@ -70,7 +84,7 @@ const DespesasEntradas = () => {
     }
   };
 
-  // Usar os dados do dashboard para garantir sincronização total
+  // Usar dados sincronizados - ÚNICA FONTE DE VERDADE
   const dashboardData = getDashboardData();
   const saldoSincronizado = calculateSaldo();
 
@@ -118,6 +132,7 @@ const DespesasEntradas = () => {
                   id="valor"
                   type="number"
                   step="0.01"
+                  min="0.01"
                   value={formData.valor}
                   onChange={(e) => setFormData({...formData, valor: e.target.value})}
                   required
@@ -210,7 +225,7 @@ const DespesasEntradas = () => {
 
       {/* Lista de Registros */}
       <div className="space-y-4">
-        {despesasEntradas
+        {(despesasEntradas || [])
           .sort((a, b) => new Date(b.data_registro).getTime() - new Date(a.data_registro).getTime())
           .map((item) => (
           <Card key={item.id}>
@@ -219,9 +234,9 @@ const DespesasEntradas = () => {
                 <div className="flex items-center space-x-4">
                   {getIcon(item.tipo)}
                   <div>
-                    <p className="font-medium">{item.descricao}</p>
+                    <p className="font-medium">{item.descricao || 'Sem descrição'}</p>
                     <p className="text-sm text-gray-600">
-                      {item.categoria} • {new Date(item.data_registro).toLocaleDateString('pt-BR')}
+                      {item.categoria || 'Sem categoria'} • {new Date(item.data_registro).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
@@ -239,7 +254,7 @@ const DespesasEntradas = () => {
         ))}
       </div>
 
-      {despesasEntradas.length === 0 && (
+      {(!despesasEntradas || despesasEntradas.length === 0) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-gray-500 mb-4">Nenhum registro financeiro</p>
