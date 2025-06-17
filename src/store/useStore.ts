@@ -21,24 +21,31 @@ interface Store {
   deleteCliente: (id: string) => void;
   
   // Produtos
-  addProduto: (produto: Omit<Produto, 'id'>) => void;
+  addProduto: (produto: Omit<Produto, 'id' | 'margem_lucro' | 'percentual_lucro' | 'total_vendido' | 'total_faturado'>) => void;
   updateProduto: (id: string, produto: Partial<Produto>) => void;
   deleteProduto: (id: string) => void;
   
   // Pedidos
   createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => void;
   updatePedidoStatus: (id: string, status: 'pendente' | 'producao' | 'pronto' | 'entregue') => void;
+  deletePedido: (id: string) => void;
   
   // Fiados
   addFiado: (fiado: Omit<Fiado, 'id'>) => void;
+  updateFiado: (id: string, fiado: Partial<Fiado>) => void;
+  deleteFiado: (id: string) => void;
   addPagamentoFiado: (pagamento: Omit<PagamentoFiado, 'id'>) => void;
+  deletePagamentoFiado: (id: string) => void;
   
   // Despesas/Entradas
   addDespesaEntrada: (item: Omit<DespesaEntrada, 'id'>) => void;
+  updateDespesaEntrada: (id: string, item: Partial<DespesaEntrada>) => void;
+  deleteDespesaEntrada: (id: string) => void;
   
   // Comodatos
-  addComodato: (comodato: Omit<Comodato, 'id'>) => void;
+  addComodato: (comodato: Omit<Comodato, 'id' | 'valor_total' | 'quantidade_pendente'>) => void;
   updateComodato: (id: string, comodato: Partial<Comodato>) => void;
+  deleteComodato: (id: string) => void;
   
   // Dashboard
   getDashboardData: () => {
@@ -80,10 +87,8 @@ export const useStore = create<Store>((set, get) => ({
     
     if (needsSeed) {
       console.log('Seed applied');
-      // Aplicar seed automaticamente
       localStore.applySeed();
       
-      // Recarregar dados após seed
       const seededClientes = localStore.read<Cliente>('clientes');
       const seededProdutos = localStore.read<Produto>('produtos');
       const seededDespesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas');
@@ -139,14 +144,34 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   addProduto: (produto) => {
-    const newProduto = { ...produto, id: Date.now().toString() };
+    const margem_lucro = produto.preco_sugerido - produto.custo_producao;
+    const percentual_lucro = produto.custo_producao > 0 ? (margem_lucro / produto.custo_producao) * 100 : 0;
+    
+    const newProduto = { 
+      ...produto, 
+      id: Date.now().toString(),
+      margem_lucro,
+      percentual_lucro,
+      total_vendido: 0,
+      total_faturado: 0
+    };
     const produtos = [...get().produtos, newProduto];
     localStore.write('produtos', produtos);
     set({ produtos });
   },
 
   updateProduto: (id, updates) => {
-    const produtos = get().produtos.map(p => p.id === id ? { ...p, ...updates } : p);
+    const produtos = get().produtos.map(p => {
+      if (p.id === id) {
+        const updated = { ...p, ...updates };
+        if (updates.custo_producao !== undefined || updates.preco_sugerido !== undefined) {
+          updated.margem_lucro = updated.preco_sugerido - updated.custo_producao;
+          updated.percentual_lucro = updated.custo_producao > 0 ? (updated.margem_lucro / updated.custo_producao) * 100 : 0;
+        }
+        return updated;
+      }
+      return p;
+    });
     localStore.write('produtos', produtos);
     set({ produtos });
   },
@@ -172,8 +197,10 @@ export const useStore = create<Store>((set, get) => ({
         valorTotal += item.preco_unitario * item.quantidade;
         valorLucro += lucroItem;
 
-        // Atualizar estoque
+        // Atualizar estoque e estatísticas do produto
         produto.estoque_atual -= item.quantidade;
+        produto.total_vendido += item.quantidade;
+        produto.total_faturado += item.preco_unitario * item.quantidade;
 
         // Criar item do pedido
         novosItens.push({
@@ -215,11 +242,33 @@ export const useStore = create<Store>((set, get) => ({
     set({ pedidos });
   },
 
+  deletePedido: (id) => {
+    const pedidos = get().pedidos.filter(p => p.id !== id);
+    const itensPedido = get().itensPedido.filter(i => i.pedido_id !== id);
+    localStore.write('pedidos', pedidos);
+    localStore.write('itens_pedido', itensPedido);
+    set({ pedidos, itensPedido });
+  },
+
   addFiado: (fiado) => {
     const newFiado = { ...fiado, id: Date.now().toString() };
     const fiados = [...get().fiados, newFiado];
     localStore.write('fiados', fiados);
     set({ fiados });
+  },
+
+  updateFiado: (id, updates) => {
+    const fiados = get().fiados.map(f => f.id === id ? { ...f, ...updates } : f);
+    localStore.write('fiados', fiados);
+    set({ fiados });
+  },
+
+  deleteFiado: (id) => {
+    const fiados = get().fiados.filter(f => f.id !== id);
+    const pagamentosFiado = get().pagamentosFiado.filter(p => p.fiado_id !== id);
+    localStore.write('fiados', fiados);
+    localStore.write('pagamentos_fiado', pagamentosFiado);
+    set({ fiados, pagamentosFiado });
   },
 
   addPagamentoFiado: (pagamento) => {
@@ -239,6 +288,12 @@ export const useStore = create<Store>((set, get) => ({
     set({ fiados });
   },
 
+  deletePagamentoFiado: (id) => {
+    const pagamentosFiado = get().pagamentosFiado.filter(p => p.id !== id);
+    localStore.write('pagamentos_fiado', pagamentosFiado);
+    set({ pagamentosFiado });
+  },
+
   addDespesaEntrada: (item) => {
     const newItem = { ...item, id: Date.now().toString() };
     const despesasEntradas = [...get().despesasEntradas, newItem];
@@ -246,15 +301,53 @@ export const useStore = create<Store>((set, get) => ({
     set({ despesasEntradas });
   },
 
+  updateDespesaEntrada: (id, updates) => {
+    const despesasEntradas = get().despesasEntradas.map(d => d.id === id ? { ...d, ...updates } : d);
+    localStore.write('despesas_entradas', despesasEntradas);
+    set({ despesasEntradas });
+  },
+
+  deleteDespesaEntrada: (id) => {
+    const despesasEntradas = get().despesasEntradas.filter(d => d.id !== id);
+    localStore.write('despesas_entradas', despesasEntradas);
+    set({ despesasEntradas });
+  },
+
   addComodato: (comodato) => {
-    const newComodato = { ...comodato, id: Date.now().toString() };
+    const valor_total = comodato.quantidade * comodato.valor_unitario;
+    const quantidade_pendente = comodato.quantidade - comodato.quantidade_vendida - comodato.quantidade_paga;
+    
+    const newComodato = { 
+      ...comodato, 
+      id: Date.now().toString(),
+      valor_total,
+      quantidade_pendente
+    };
     const comodatos = [...get().comodatos, newComodato];
     localStore.write('comodatos', comodatos);
     set({ comodatos });
   },
 
   updateComodato: (id, updates) => {
-    const comodatos = get().comodatos.map(c => c.id === id ? { ...c, ...updates } : c);
+    const comodatos = get().comodatos.map(c => {
+      if (c.id === id) {
+        const updated = { ...c, ...updates };
+        if (updates.quantidade !== undefined || updates.valor_unitario !== undefined) {
+          updated.valor_total = updated.quantidade * updated.valor_unitario;
+        }
+        if (updates.quantidade_vendida !== undefined || updates.quantidade_paga !== undefined || updates.quantidade !== undefined) {
+          updated.quantidade_pendente = updated.quantidade - updated.quantidade_vendida - updated.quantidade_paga;
+        }
+        return updated;
+      }
+      return c;
+    });
+    localStore.write('comodatos', comodatos);
+    set({ comodatos });
+  },
+
+  deleteComodato: (id) => {
+    const comodatos = get().comodatos.filter(c => c.id !== id);
     localStore.write('comodatos', comodatos);
     set({ comodatos });
   },

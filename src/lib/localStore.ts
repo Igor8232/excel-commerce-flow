@@ -1,11 +1,16 @@
+
 // Simulação do Excel Store usando localStorage
 export interface Cliente {
   id: string;
   nome: string;
   telefone: string;
+  cpf_cnpj: string;
   email: string;
+  endereco: string;
   cidade: string;
   estado: string;
+  nome_fantasia?: string;
+  observacao?: string;
   data_cadastro: string;
 }
 
@@ -14,8 +19,12 @@ export interface Produto {
   nome: string;
   custo_producao: number;
   preco_sugerido: number;
+  margem_lucro: number;
+  percentual_lucro: number;
   estoque_atual: number;
   estoque_minimo: number;
+  total_vendido: number;
+  total_faturado: number;
 }
 
 export interface Pedido {
@@ -72,7 +81,13 @@ export interface Comodato {
   data_prev_devolucao: string;
   data_devolucao_real?: string;
   valor_garantia: number;
-  status: 'Emprestado' | 'Devolvido';
+  valor_unitario: number;
+  valor_total: number;
+  quantidade_vendida: number;
+  quantidade_paga: number;
+  quantidade_pendente: number;
+  observacoes?: string;
+  status: 'Emprestado' | 'Devolvido' | 'Parcialmente Vendido' | 'Totalmente Vendido';
 }
 
 class LocalStore {
@@ -119,9 +134,13 @@ class LocalStore {
         id: Date.now().toString(),
         nome: 'Empresa Exemplo',
         telefone: '(11) 99999-9999',
+        cpf_cnpj: '00.000.000/0001-00',
         email: 'exemplo@email.com',
+        endereco: 'Rua Exemplo, 123',
         cidade: 'São Paulo',
         estado: 'SP',
+        nome_fantasia: 'Exemplo Ltda',
+        observacao: 'Cliente exemplo do sistema',
         data_cadastro: hoje
       }
     ]);
@@ -133,8 +152,12 @@ class LocalStore {
         nome: 'Produto Demo',
         custo_producao: 10.00,
         preco_sugerido: 25.00,
+        margem_lucro: 15.00,
+        percentual_lucro: 150,
         estoque_atual: 10,
-        estoque_minimo: 2
+        estoque_minimo: 2,
+        total_vendido: 0,
+        total_faturado: 0
       }
     ]);
 
