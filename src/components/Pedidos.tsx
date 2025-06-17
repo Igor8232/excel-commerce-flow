@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, LayoutGrid, List } from 'lucide-react';
+import { Plus, Trash2, LayoutGrid, List, ShoppingCart } from 'lucide-react';
 import PedidosKanban from './PedidosKanban';
 
 interface ItemPedido {
