@@ -1,0 +1,62 @@
+
+{
+  "name": "Sistema Comercial Excel",
+  "short_name": "Comercial",
+  "description": "Sistema completo de gestão comercial com armazenamento local",
+  "start_url": "./app.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "16x16 32x32 48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "lang": "pt-BR",
+  "scope": "./",
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Abrir dashboard principal",
+      "url": "./index.html#/dashboard",
+      "icons": [
+        {
+          "src": "favicon.ico",
+          "sizes": "48x48",
+          "type": "image/x-icon"
+        }
+      ]
+    },
+    {
+      "name": "Produtos",
+      "short_name": "Produtos",
+      "description": "Gerenciar produtos",
+      "url": "./index.html#/produtos",
+      "icons": [
+        {
+          "src": "favicon.ico",
+          "sizes": "48x48",
+          "type": "image/x-icon"
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "short_name": "Pedidos",
+      "description": "Gerenciar pedidos",
+      "url": "./index.html#/pedidos",
+      "icons": [
+        {
+          "src": "favicon.ico",
+          "sizes": "48x48",
+          "type": "image/x-icon"
+        }
+      ]
+    }
+  ]
+}

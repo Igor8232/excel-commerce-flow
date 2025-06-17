@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema Comercial Excel</title>
+    <meta name="description" content="Sistema Completo de Gestão Comercial" />
+    <meta name="author" content="Sistema Comercial" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    
+    <!-- Manifest para PWA -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Meta tags para PWA -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Sistema Comercial">
+    
+    <!-- Styles -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .container {
+        text-align: center;
+        background: white;
+        padding: 3rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        max-width: 500px;
+        width: 90%;
+      }
+      
+      h1 {
+        color: #1f2937;
+        margin-bottom: 1rem;
+        font-size: 2rem;
+      }
+      
+      p {
+        color: #6b7280;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+      }
+      
+      .btn {
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        margin: 0.5rem;
+      }
+      
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+      }
+      
+      .feature-list {
+        text-align: left;
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background: #f8fafc;
+        border-radius: 10px;
+      }
+      
+      .feature-list h3 {
+        color: #1f2937;
+        margin-bottom: 1rem;
+      }
+      
+      .feature-list ul {
+        color: #4b5563;
+        margin: 0;
+        padding-left: 1.5rem;
+      }
+      
+      .feature-list li {
+        margin-bottom: 0.5rem;
+      }
+      
+      .status {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #10b981;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+      
+      .loading {
+        display: none;
+        color: #6b7280;
+        margin-top: 1rem;
+      }
+      
+      .error {
+        color: #ef4444;
+        background: #fee2e2;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="status">✅ Sistema Pronto</div>
+      
+      <h1>🏪 Sistema Comercial Excel</h1>
+      <p>Sistema completo de gestão comercial com armazenamento local. Todos os dados são salvos automaticamente no seu computador.</p>
+      
+      <div class="feature-list">
+        <h3>📋 Funcionalidades:</h3>
+        <ul>
+          <li>✅ Gestão de Clientes</li>
+          <li>✅ Controle de Produtos e Estoque</li>
+          <li>✅ Pedidos e Vendas</li>
+          <li>✅ Controle de Fiados</li>
+          <li>✅ Gestão Financeira</li>
+          <li>✅ Sistema de Comodatos</li>
+          <li>✅ Agenda de Eventos</li>
+          <li>✅ Dashboard Completo</li>
+          <li>✅ Backup Automático</li>
+        </ul>
+      </div>
+      
+      <button class="btn" onclick="abrirSistema()">
+        🚀 Abrir Sistema Comercial
+      </button>
+      
+      <a href="./index.html" class="btn" style="background: linear-gradient(135deg, #059669, #10b981);">
+        🔧 Modo Desenvolvedor
+      </a>
+      
+      <div class="loading" id="loading">
+        ⏳ Carregando sistema...
+      </div>
+      
+      <div class="error" id="error">
+        ❌ Erro ao carregar o sistema. Verifique se todos os arquivos estão presentes.
+      </div>
+    </div>
+
+    <script>
+      function abrirSistema() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('error').style.display = 'none';
+        
+        try {
+          // Verificar se o sistema está funcionando
+          if (typeof Storage !== "undefined") {
+            console.log('✅ LocalStorage disponível');
+            
+            // Redirecionar para o sistema
+            setTimeout(() => {
+              window.location.href = './index.html';
+            }, 1000);
+            
+          } else {
+            throw new Error('LocalStorage não disponível');
+          }
+        } catch (error) {
+          console.error('❌ Erro:', error);
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error').style.display = 'block';
+          document.getElementById('error').textContent = '❌ ' + error.message;
+        }
+      }
+      
+      // Verificar status do sistema ao carregar
+      window.addEventListener('load', function() {
+        console.log('🔧 Sistema Comercial Excel - Verificando status...');
+        
+        // Verificar LocalStorage
+        if (typeof Storage !== "undefined") {
+          console.log('✅ LocalStorage: OK');
+        } else {
+          console.warn('⚠️ LocalStorage: Não disponível');
+        }
+        
+        // Verificar se há dados salvos
+        try {
+          const dados = localStorage.getItem('excel_commerce_clientes');
+          if (dados) {
+            console.log('✅ Dados encontrados no sistema');
+          } else {
+            console.log('ℹ️ Sistema novo - dados serão criados na primeira execução');
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao verificar dados:', error);
+        }
+        
+        console.log('✅ Sistema pronto para uso!');
+      });
+      
+      // Atalho de teclado para abrir rapidamente
+      document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === 'Enter') {
+          abrirSistema();
+        }
+      });
+    </script>
+  </body>
+</html>

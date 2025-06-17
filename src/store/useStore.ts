@@ -12,49 +12,51 @@ interface Store {
   despesasEntradas: DespesaEntrada[];
   comodatos: Comodato[];
   eventos: Evento[];
+  isLoading: boolean;
+  error: string | null;
 
   // Ações
   loadData: () => void;
   
   // Clientes
-  addCliente: (cliente: Omit<Cliente, 'id'>) => void;
-  updateCliente: (id: string, cliente: Partial<Cliente>) => void;
-  deleteCliente: (id: string) => void;
+  addCliente: (cliente: Omit<Cliente, 'id'>) => Promise<boolean>;
+  updateCliente: (id: string, cliente: Partial<Cliente>) => Promise<boolean>;
+  deleteCliente: (id: string) => Promise<boolean>;
   
   // Produtos
-  addProduto: (produto: Omit<Produto, 'id' | 'margem_lucro' | 'percentual_lucro' | 'total_vendido' | 'total_faturado'>) => void;
-  updateProduto: (id: string, produto: Partial<Produto>) => void;
-  deleteProduto: (id: string) => void;
+  addProduto: (produto: Omit<Produto, 'id' | 'margem_lucro' | 'percentual_lucro' | 'total_vendido' | 'total_faturado'>) => Promise<boolean>;
+  updateProduto: (id: string, produto: Partial<Produto>) => Promise<boolean>;
+  deleteProduto: (id: string) => Promise<boolean>;
   
   // Pedidos
-  createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => void;
-  updatePedido: (id: string, pedido: Partial<Pedido>) => void;
-  updatePedidoStatus: (id: string, status: 'pendente' | 'producao' | 'pronto' | 'entregue') => void;
-  deletePedido: (id: string) => void;
+  createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => Promise<boolean>;
+  updatePedido: (id: string, pedido: Partial<Pedido>) => Promise<boolean>;
+  updatePedidoStatus: (id: string, status: 'pendente' | 'producao' | 'pronto' | 'entregue') => Promise<boolean>;
+  deletePedido: (id: string) => Promise<boolean>;
   
   // Fiados
-  addFiado: (fiado: Omit<Fiado, 'id'>) => void;
-  updateFiado: (id: string, fiado: Partial<Fiado>) => void;
-  deleteFiado: (id: string) => void;
-  addPagamentoFiado: (pagamento: Omit<PagamentoFiado, 'id'>) => void;
-  deletePagamentoFiado: (id: string) => void;
+  addFiado: (fiado: Omit<Fiado, 'id'>) => Promise<boolean>;
+  updateFiado: (id: string, fiado: Partial<Fiado>) => Promise<boolean>;
+  deleteFiado: (id: string) => Promise<boolean>;
+  addPagamentoFiado: (pagamento: Omit<PagamentoFiado, 'id'>) => Promise<boolean>;
+  deletePagamentoFiado: (id: string) => Promise<boolean>;
   
   // Despesas/Entradas
-  addDespesaEntrada: (item: Omit<DespesaEntrada, 'id'>) => void;
-  updateDespesaEntrada: (id: string, item: Partial<DespesaEntrada>) => void;
-  deleteDespesaEntrada: (id: string) => void;
+  addDespesaEntrada: (item: Omit<DespesaEntrada, 'id'>) => Promise<boolean>;
+  updateDespesaEntrada: (id: string, item: Partial<DespesaEntrada>) => Promise<boolean>;
+  deleteDespesaEntrada: (id: string) => Promise<boolean>;
   
   // Comodatos
-  addComodato: (comodato: Omit<Comodato, 'id' | 'valor_total' | 'quantidade_pendente'>) => void;
-  updateComodato: (id: string, comodato: Partial<Comodato>) => void;
-  deleteComodato: (id: string) => void;
+  addComodato: (comodato: Omit<Comodato, 'id' | 'valor_total' | 'quantidade_pendente'>) => Promise<boolean>;
+  updateComodato: (id: string, comodato: Partial<Comodato>) => Promise<boolean>;
+  deleteComodato: (id: string) => Promise<boolean>;
   
   // Eventos
-  addEvento: (evento: Omit<Evento, 'id'>) => void;
-  updateEvento: (id: string, evento: Partial<Evento>) => void;
-  deleteEvento: (id: string) => void;
+  addEvento: (evento: Omit<Evento, 'id'>) => Promise<boolean>;
+  updateEvento: (id: string, evento: Partial<Evento>) => Promise<boolean>;
+  deleteEvento: (id: string) => Promise<boolean>;
   
-  // Dashboard - Função centralizada ÚNICA para todos os cálculos
+  // Dashboard
   getDashboardData: () => {
     saldo_total: number;
     lucro_total: number;
@@ -66,13 +68,25 @@ interface Store {
     eventos_proximos: number;
   };
   
-  // Função centralizada ÚNICA para calcular saldo
   calculateSaldo: () => number;
-  
   getEstoqueBaixo: () => Produto[];
   getEventosHoje: () => Evento[];
   getEventosProximos: () => Evento[];
+  
+  // Utilitários
+  clearError: () => void;
+  exportData: () => void;
+  validateDataIntegrity: () => boolean;
 }
+
+const safeParseNumber = (value: any): number => {
+  const parsed = Number(value);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+const generateId = (): string => {
+  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
 
 export const useStore = create<Store>((set, get) => ({
   clientes: [],
@@ -84,9 +98,15 @@ export const useStore = create<Store>((set, get) => ({
   despesasEntradas: [],
   comodatos: [],
   eventos: [],
+  isLoading: false,
+  error: null,
+
+  clearError: () => set({ error: null }),
 
   loadData: () => {
-    console.log('Carregando dados...');
+    console.log('🔄 Iniciando carregamento de dados...');
+    set({ isLoading: true, error: null });
+    
     try {
       localStore.initializeData();
       
@@ -104,7 +124,7 @@ export const useStore = create<Store>((set, get) => ({
       const needsSeed = clientes.length === 0 && produtos.length === 0 && despesasEntradas.length === 0;
       
       if (needsSeed) {
-        console.log('Aplicando seed inicial...');
+        console.log('🌱 Aplicando dados iniciais...');
         localStore.applySeed();
         
         const seededClientes = localStore.read<Cliente>('clientes') || [];
@@ -121,9 +141,10 @@ export const useStore = create<Store>((set, get) => ({
           despesasEntradas: seededDespesasEntradas,
           comodatos,
           eventos,
+          isLoading: false
         });
       } else {
-        console.log('Dados carregados:', {
+        console.log('✅ Dados carregados:', {
           clientes: clientes.length,
           produtos: produtos.length,
           pedidos: pedidos.length,
@@ -141,11 +162,15 @@ export const useStore = create<Store>((set, get) => ({
           despesasEntradas,
           comodatos,
           eventos,
+          isLoading: false
         });
       }
+      
+      // Verificar integridade dos dados
+      get().validateDataIntegrity();
+      
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      // Se houver erro, inicializar com arrays vazios
+      console.error('❌ Erro ao carregar dados:', error);
       set({
         clientes: [],
         produtos: [],
@@ -156,111 +181,135 @@ export const useStore = create<Store>((set, get) => ({
         despesasEntradas: [],
         comodatos: [],
         eventos: [],
+        isLoading: false,
+        error: 'Erro ao carregar dados do sistema'
       });
     }
   },
 
-  addCliente: (cliente) => {
+  addCliente: async (cliente) => {
     try {
-      const newCliente = { ...cliente, id: Date.now().toString() };
+      const newCliente = { 
+        ...cliente, 
+        id: generateId(),
+        data_cadastro: cliente.data_cadastro || new Date().toISOString().split('T')[0]
+      };
       const clientes = [...get().clientes, newCliente];
       localStore.write('clientes', clientes);
       set({ clientes });
-      console.log('Cliente adicionado:', newCliente.nome);
+      console.log('✅ Cliente adicionado:', newCliente.nome);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar cliente:', error);
+      console.error('❌ Erro ao adicionar cliente:', error);
+      set({ error: 'Erro ao adicionar cliente' });
+      return false;
     }
   },
 
-  updateCliente: (id, updates) => {
+  updateCliente: async (id, updates) => {
     try {
       const clientes = get().clientes.map(c => c.id === id ? { ...c, ...updates } : c);
       localStore.write('clientes', clientes);
       set({ clientes });
-      console.log('Cliente atualizado:', id);
+      console.log('✅ Cliente atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar cliente:', error);
+      console.error('❌ Erro ao atualizar cliente:', error);
+      set({ error: 'Erro ao atualizar cliente' });
+      return false;
     }
   },
 
-  deleteCliente: (id) => {
+  deleteCliente: async (id) => {
     try {
       const clientes = get().clientes.filter(c => c.id !== id);
       localStore.write('clientes', clientes);
       set({ clientes });
-      console.log('Cliente deletado:', id);
+      console.log('✅ Cliente deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar cliente:', error);
+      console.error('❌ Erro ao deletar cliente:', error);
+      set({ error: 'Erro ao deletar cliente' });
+      return false;
     }
   },
 
-  addProduto: (produto) => {
+  addProduto: async (produto) => {
     try {
-      const custo = Number(produto.custo_producao) || 0;
-      const preco = Number(produto.preco_sugerido) || 0;
+      const custo = safeParseNumber(produto.custo_producao);
+      const preco = safeParseNumber(produto.preco_sugerido);
       const margem_lucro = preco - custo;
       const percentual_lucro = custo > 0 ? (margem_lucro / custo) * 100 : 0;
       
       const newProduto = { 
         ...produto, 
-        id: Date.now().toString(),
+        id: generateId(),
         custo_producao: custo,
         preco_sugerido: preco,
         margem_lucro,
         percentual_lucro,
         total_vendido: 0,
         total_faturado: 0,
-        estoque_atual: Number(produto.estoque_atual) || 0,
-        estoque_minimo: Number(produto.estoque_minimo) || 0
+        estoque_atual: safeParseNumber(produto.estoque_atual),
+        estoque_minimo: safeParseNumber(produto.estoque_minimo)
       };
       const produtos = [...get().produtos, newProduto];
       localStore.write('produtos', produtos);
       set({ produtos });
-      console.log('Produto adicionado:', newProduto.nome);
+      console.log('✅ Produto adicionado:', newProduto.nome);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar produto:', error);
+      console.error('❌ Erro ao adicionar produto:', error);
+      set({ error: 'Erro ao adicionar produto' });
+      return false;
     }
   },
 
-  updateProduto: (id, updates) => {
+  updateProduto: async (id, updates) => {
     try {
       const produtos = get().produtos.map(p => {
         if (p.id === id) {
           const updated = { ...p, ...updates };
-          const custo = Number(updated.custo_producao) || 0;
-          const preco = Number(updated.preco_sugerido) || 0;
+          const custo = safeParseNumber(updated.custo_producao);
+          const preco = safeParseNumber(updated.preco_sugerido);
           updated.custo_producao = custo;
           updated.preco_sugerido = preco;
           updated.margem_lucro = preco - custo;
           updated.percentual_lucro = custo > 0 ? ((preco - custo) / custo) * 100 : 0;
-          updated.estoque_atual = Number(updated.estoque_atual) || 0;
-          updated.estoque_minimo = Number(updated.estoque_minimo) || 0;
+          updated.estoque_atual = safeParseNumber(updated.estoque_atual);
+          updated.estoque_minimo = safeParseNumber(updated.estoque_minimo);
           return updated;
         }
         return p;
       });
       localStore.write('produtos', produtos);
       set({ produtos });
-      console.log('Produto atualizado:', id);
+      console.log('✅ Produto atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar produto:', error);
+      console.error('❌ Erro ao atualizar produto:', error);
+      set({ error: 'Erro ao atualizar produto' });
+      return false;
     }
   },
 
-  deleteProduto: (id) => {
+  deleteProduto: async (id) => {
     try {
       const produtos = get().produtos.filter(p => p.id !== id);
       localStore.write('produtos', produtos);
       set({ produtos });
-      console.log('Produto deletado:', id);
+      console.log('✅ Produto deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar produto:', error);
+      console.error('❌ Erro ao deletar produto:', error);
+      set({ error: 'Erro ao deletar produto' });
+      return false;
     }
   },
 
-  createPedido: ({ cliente_id, itens }) => {
+  createPedido: async ({ cliente_id, itens }) => {
     try {
-      const pedidoId = Date.now().toString();
+      const pedidoId = generateId();
       let valorTotal = 0;
       let valorLucro = 0;
       const novosItens: ItemPedido[] = [];
@@ -270,9 +319,9 @@ export const useStore = create<Store>((set, get) => ({
       itens.forEach((item, index) => {
         const produto = produtos.find(p => p.id === item.produto_id);
         if (produto) {
-          const quantidade = Number(item.quantidade) || 0;
-          const precoUnitario = Number(item.preco_unitario) || 0;
-          const custoUnitario = Number(produto.custo_producao) || 0;
+          const quantidade = safeParseNumber(item.quantidade);
+          const precoUnitario = safeParseNumber(item.preco_unitario);
+          const custoUnitario = safeParseNumber(produto.custo_producao);
           
           const lucroItem = (precoUnitario - custoUnitario) * quantidade;
           const valorItem = precoUnitario * quantidade;
@@ -317,106 +366,127 @@ export const useStore = create<Store>((set, get) => ({
       localStore.write('produtos', produtos);
 
       set({ pedidos, itensPedido, produtos });
-      console.log('Pedido criado:', pedidoId, 'Valor total:', valorTotal, 'Lucro:', valorLucro);
+      console.log('✅ Pedido criado:', pedidoId, 'Valor total:', valorTotal, 'Lucro:', valorLucro);
+      return true;
     } catch (error) {
-      console.error('Erro ao criar pedido:', error);
+      console.error('❌ Erro ao criar pedido:', error);
+      set({ error: 'Erro ao criar pedido' });
+      return false;
     }
   },
 
-  updatePedido: (id, updates) => {
+  updatePedido: async (id, updates) => {
     try {
       const pedidos = get().pedidos.map(p => p.id === id ? { 
         ...p, 
         ...updates,
-        valor_total: Number(updates.valor_total ?? p.valor_total) || 0,
-        valor_lucro: Number(updates.valor_lucro ?? p.valor_lucro) || 0
+        valor_total: safeParseNumber(updates.valor_total ?? p.valor_total),
+        valor_lucro: safeParseNumber(updates.valor_lucro ?? p.valor_lucro)
       } : p);
       localStore.write('pedidos', pedidos);
       set({ pedidos });
-      console.log('Pedido atualizado:', id);
+      console.log('✅ Pedido atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar pedido:', error);
+      console.error('❌ Erro ao atualizar pedido:', error);
+      set({ error: 'Erro ao atualizar pedido' });
+      return false;
     }
   },
 
-  updatePedidoStatus: (id, status) => {
+  updatePedidoStatus: async (id, status) => {
     try {
       const pedidos = get().pedidos.map(p => p.id === id ? { ...p, status } : p);
       localStore.write('pedidos', pedidos);
       set({ pedidos });
-      console.log('Status do pedido atualizado:', id, status);
+      console.log('✅ Status do pedido atualizado:', id, status);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar status do pedido:', error);
+      console.error('❌ Erro ao atualizar status do pedido:', error);
+      set({ error: 'Erro ao atualizar status do pedido' });
+      return false;
     }
   },
 
-  deletePedido: (id) => {
+  deletePedido: async (id) => {
     try {
       const pedidos = get().pedidos.filter(p => p.id !== id);
       const itensPedido = get().itensPedido.filter(i => i.pedido_id !== id);
       localStore.write('pedidos', pedidos);
       localStore.write('itens_pedido', itensPedido);
       set({ pedidos, itensPedido });
-      console.log('Pedido deletado:', id);
+      console.log('✅ Pedido deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar pedido:', error);
+      console.error('❌ Erro ao deletar pedido:', error);
+      set({ error: 'Erro ao deletar pedido' });
+      return false;
     }
   },
 
-  addFiado: (fiado) => {
+  addFiado: async (fiado) => {
     try {
       const newFiado = { 
         ...fiado, 
-        id: Date.now().toString(),
-        valor_total: Number(fiado.valor_total) || 0,
-        valor_pago: Number(fiado.valor_pago) || 0,
-        valor_pendente: Number(fiado.valor_pendente) || 0
+        id: generateId(),
+        valor_total: safeParseNumber(fiado.valor_total),
+        valor_pago: safeParseNumber(fiado.valor_pago),
+        valor_pendente: safeParseNumber(fiado.valor_pendente)
       };
       const fiados = [...get().fiados, newFiado];
       localStore.write('fiados', fiados);
       set({ fiados });
-      console.log('Fiado adicionado:', newFiado.id);
+      console.log('✅ Fiado adicionado:', newFiado.id);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar fiado:', error);
+      console.error('❌ Erro ao adicionar fiado:', error);
+      set({ error: 'Erro ao adicionar fiado' });
+      return false;
     }
   },
 
-  updateFiado: (id, updates) => {
+  updateFiado: async (id, updates) => {
     try {
       const fiados = get().fiados.map(f => f.id === id ? { 
         ...f, 
         ...updates,
-        valor_total: Number(updates.valor_total ?? f.valor_total) || 0,
-        valor_pago: Number(updates.valor_pago ?? f.valor_pago) || 0,
-        valor_pendente: Number(updates.valor_pendente ?? f.valor_pendente) || 0
+        valor_total: safeParseNumber(updates.valor_total ?? f.valor_total),
+        valor_pago: safeParseNumber(updates.valor_pago ?? f.valor_pago),
+        valor_pendente: safeParseNumber(updates.valor_pendente ?? f.valor_pendente)
       } : f);
       localStore.write('fiados', fiados);
       set({ fiados });
-      console.log('Fiado atualizado:', id);
+      console.log('✅ Fiado atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar fiado:', error);
+      console.error('❌ Erro ao atualizar fiado:', error);
+      set({ error: 'Erro ao atualizar fiado' });
+      return false;
     }
   },
 
-  deleteFiado: (id) => {
+  deleteFiado: async (id) => {
     try {
       const fiados = get().fiados.filter(f => f.id !== id);
       const pagamentosFiado = get().pagamentosFiado.filter(p => p.fiado_id !== id);
       localStore.write('fiados', fiados);
       localStore.write('pagamentos_fiado', pagamentosFiado);
       set({ fiados, pagamentosFiado });
-      console.log('Fiado deletado:', id);
+      console.log('✅ Fiado deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar fiado:', error);
+      console.error('❌ Erro ao deletar fiado:', error);
+      set({ error: 'Erro ao deletar fiado' });
+      return false;
     }
   },
 
-  addPagamentoFiado: (pagamento) => {
+  addPagamentoFiado: async (pagamento) => {
     try {
-      const valorPagamento = Number(pagamento.valor_pagamento) || 0;
+      const valorPagamento = safeParseNumber(pagamento.valor_pagamento);
       const newPagamento = { 
         ...pagamento, 
-        id: Date.now().toString(),
+        id: generateId(),
         valor_pagamento: valorPagamento
       };
       const pagamentosFiado = [...get().pagamentosFiado, newPagamento];
@@ -426,8 +496,8 @@ export const useStore = create<Store>((set, get) => ({
       // Atualizar valor pendente do fiado
       const fiados = get().fiados.map(f => {
         if (f.id === pagamento.fiado_id) {
-          const novoValorPago = (f.valor_pago || 0) + valorPagamento;
-          const novoValorPendente = Math.max(0, (f.valor_total || 0) - novoValorPago);
+          const novoValorPago = safeParseNumber(f.valor_pago) + valorPagamento;
+          const novoValorPendente = Math.max(0, safeParseNumber(f.valor_total) - novoValorPago);
           return { 
             ...f, 
             valor_pago: novoValorPago, 
@@ -438,104 +508,122 @@ export const useStore = create<Store>((set, get) => ({
       });
       localStore.write('fiados', fiados);
       set({ fiados });
-      console.log('Pagamento de fiado adicionado:', newPagamento.id);
+      console.log('✅ Pagamento de fiado adicionado:', newPagamento.id);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar pagamento de fiado:', error);
+      console.error('❌ Erro ao adicionar pagamento de fiado:', error);
+      set({ error: 'Erro ao adicionar pagamento de fiado' });
+      return false;
     }
   },
 
-  deletePagamentoFiado: (id) => {
+  deletePagamentoFiado: async (id) => {
     try {
       const pagamentosFiado = get().pagamentosFiado.filter(p => p.id !== id);
       localStore.write('pagamentos_fiado', pagamentosFiado);
       set({ pagamentosFiado });
-      console.log('Pagamento de fiado deletado:', id);
+      console.log('✅ Pagamento de fiado deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar pagamento de fiado:', error);
+      console.error('❌ Erro ao deletar pagamento de fiado:', error);
+      set({ error: 'Erro ao deletar pagamento de fiado' });
+      return false;
     }
   },
 
-  addDespesaEntrada: (item) => {
+  addDespesaEntrada: async (item) => {
     try {
       const newItem = { 
         ...item, 
-        id: Date.now().toString(),
-        valor: Number(item.valor) || 0
+        id: generateId(),
+        valor: safeParseNumber(item.valor)
       };
       const despesasEntradas = [...get().despesasEntradas, newItem];
       localStore.write('despesas_entradas', despesasEntradas);
       set({ despesasEntradas });
-      console.log('Despesa/Entrada adicionada:', newItem.tipo, newItem.valor);
+      console.log('✅ Despesa/Entrada adicionada:', newItem.tipo, newItem.valor);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar despesa/entrada:', error);
+      console.error('❌ Erro ao adicionar despesa/entrada:', error);
+      set({ error: 'Erro ao adicionar despesa/entrada' });
+      return false;
     }
   },
 
-  updateDespesaEntrada: (id, updates) => {
+  updateDespesaEntrada: async (id, updates) => {
     try {
       const despesasEntradas = get().despesasEntradas.map(d => d.id === id ? { 
         ...d, 
         ...updates,
-        valor: Number(updates.valor ?? d.valor) || 0
+        valor: safeParseNumber(updates.valor ?? d.valor)
       } : d);
       localStore.write('despesas_entradas', despesasEntradas);
       set({ despesasEntradas });
-      console.log('Despesa/Entrada atualizada:', id);
+      console.log('✅ Despesa/Entrada atualizada:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar despesa/entrada:', error);
+      console.error('❌ Erro ao atualizar despesa/entrada:', error);
+      set({ error: 'Erro ao atualizar despesa/entrada' });
+      return false;
     }
   },
 
-  deleteDespesaEntrada: (id) => {
+  deleteDespesaEntrada: async (id) => {
     try {
       const despesasEntradas = get().despesasEntradas.filter(d => d.id !== id);
       localStore.write('despesas_entradas', despesasEntradas);
       set({ despesasEntradas });
-      console.log('Despesa/Entrada deletada:', id);
+      console.log('✅ Despesa/Entrada deletada:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar despesa/entrada:', error);
+      console.error('❌ Erro ao deletar despesa/entrada:', error);
+      set({ error: 'Erro ao deletar despesa/entrada' });
+      return false;
     }
   },
 
-  addComodato: (comodato) => {
+  addComodato: async (comodato) => {
     try {
-      const quantidade = Number(comodato.quantidade) || 0;
-      const valorUnitario = Number(comodato.valor_unitario) || 0;
-      const quantidadeVendida = Number(comodato.quantidade_vendida) || 0;
-      const quantidadePaga = Number(comodato.quantidade_paga) || 0;
+      const quantidade = safeParseNumber(comodato.quantidade);
+      const valorUnitario = safeParseNumber(comodato.valor_unitario);
+      const quantidadeVendida = safeParseNumber(comodato.quantidade_vendida);
+      const quantidadePaga = safeParseNumber(comodato.quantidade_paga);
       
       const valor_total = quantidade * valorUnitario;
       const quantidade_pendente = Math.max(0, quantidade - quantidadeVendida - quantidadePaga);
       
       const newComodato = { 
         ...comodato, 
-        id: Date.now().toString(),
+        id: generateId(),
         quantidade,
         valor_unitario: valorUnitario,
         quantidade_vendida: quantidadeVendida,
         quantidade_paga: quantidadePaga,
         valor_total,
         quantidade_pendente,
-        valor_garantia: Number(comodato.valor_garantia) || 0
+        valor_garantia: safeParseNumber(comodato.valor_garantia)
       };
       const comodatos = [...get().comodatos, newComodato];
       localStore.write('comodatos', comodatos);
       set({ comodatos });
-      console.log('Comodato adicionado:', newComodato.id);
+      console.log('✅ Comodato adicionado:', newComodato.id);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar comodato:', error);
+      console.error('❌ Erro ao adicionar comodato:', error);
+      set({ error: 'Erro ao adicionar comodato' });
+      return false;
     }
   },
 
-  updateComodato: (id, updates) => {
+  updateComodato: async (id, updates) => {
     try {
       const comodatos = get().comodatos.map(c => {
         if (c.id === id) {
           const updated = { ...c, ...updates };
-          const quantidade = Number(updated.quantidade) || 0;
-          const valorUnitario = Number(updated.valor_unitario) || 0;
-          const quantidadeVendida = Number(updated.quantidade_vendida) || 0;
-          const quantidadePaga = Number(updated.quantidade_paga) || 0;
+          const quantidade = safeParseNumber(updated.quantidade);
+          const valorUnitario = safeParseNumber(updated.valor_unitario);
+          const quantidadeVendida = safeParseNumber(updated.quantidade_vendida);
+          const quantidadePaga = safeParseNumber(updated.quantidade_paga);
           
           updated.quantidade = quantidade;
           updated.valor_unitario = valorUnitario;
@@ -543,7 +631,7 @@ export const useStore = create<Store>((set, get) => ({
           updated.quantidade_paga = quantidadePaga;
           updated.valor_total = quantidade * valorUnitario;
           updated.quantidade_pendente = Math.max(0, quantidade - quantidadeVendida - quantidadePaga);
-          updated.valor_garantia = Number(updated.valor_garantia) || 0;
+          updated.valor_garantia = safeParseNumber(updated.valor_garantia);
           
           return updated;
         }
@@ -551,82 +639,96 @@ export const useStore = create<Store>((set, get) => ({
       });
       localStore.write('comodatos', comodatos);
       set({ comodatos });
-      console.log('Comodato atualizado:', id);
+      console.log('✅ Comodato atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar comodato:', error);
+      console.error('❌ Erro ao atualizar comodato:', error);
+      set({ error: 'Erro ao atualizar comodato' });
+      return false;
     }
   },
 
-  deleteComodato: (id) => {
+  deleteComodato: async (id) => {
     try {
       const comodatos = get().comodatos.filter(c => c.id !== id);
       localStore.write('comodatos', comodatos);
       set({ comodatos });
-      console.log('Comodato deletado:', id);
+      console.log('✅ Comodato deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar comodato:', error);
+      console.error('❌ Erro ao deletar comodato:', error);
+      set({ error: 'Erro ao deletar comodato' });
+      return false;
     }
   },
 
-  addEvento: (evento) => {
+  addEvento: async (evento) => {
     try {
       const newEvento = { 
         ...evento, 
-        id: Date.now().toString(),
-        valor: Number(evento.valor) || 0,
+        id: generateId(),
+        valor: safeParseNumber(evento.valor),
         data_criacao: new Date().toISOString().split('T')[0]
       };
       const eventos = [...get().eventos, newEvento];
       localStore.write('eventos', eventos);
       set({ eventos });
-      console.log('Evento adicionado:', newEvento.titulo);
+      console.log('✅ Evento adicionado:', newEvento.titulo);
+      return true;
     } catch (error) {
-      console.error('Erro ao adicionar evento:', error);
+      console.error('❌ Erro ao adicionar evento:', error);
+      set({ error: 'Erro ao adicionar evento' });
+      return false;
     }
   },
 
-  updateEvento: (id, updates) => {
+  updateEvento: async (id, updates) => {
     try {
       const eventos = get().eventos.map(e => e.id === id ? { 
         ...e, 
         ...updates,
-        valor: Number(updates.valor ?? e.valor) || 0
+        valor: safeParseNumber(updates.valor ?? e.valor)
       } : e);
       localStore.write('eventos', eventos);
       set({ eventos });
-      console.log('Evento atualizado:', id);
+      console.log('✅ Evento atualizado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao atualizar evento:', error);
+      console.error('❌ Erro ao atualizar evento:', error);
+      set({ error: 'Erro ao atualizar evento' });
+      return false;
     }
   },
 
-  deleteEvento: (id) => {
+  deleteEvento: async (id) => {
     try {
       const eventos = get().eventos.filter(e => e.id !== id);
       localStore.write('eventos', eventos);
       set({ eventos });
-      console.log('Evento deletado:', id);
+      console.log('✅ Evento deletado:', id);
+      return true;
     } catch (error) {
-      console.error('Erro ao deletar evento:', error);
+      console.error('❌ Erro ao deletar evento:', error);
+      set({ error: 'Erro ao deletar evento' });
+      return false;
     }
   },
 
-  // FUNÇÃO CENTRALIZADA ÚNICA PARA CALCULAR SALDO - ÚNICA FONTE DA VERDADE
   calculateSaldo: () => {
     try {
       const { pedidos, despesasEntradas } = get();
       
-      const lucroTotal = (pedidos || []).reduce((sum, p) => sum + (Number(p.valor_lucro) || 0), 0);
-      const entradas = (despesasEntradas || []).filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
-      const bonus = (despesasEntradas || []).filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
-      const despesas = (despesasEntradas || []).filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
+      const lucroTotal = (pedidos || []).reduce((sum, p) => sum + safeParseNumber(p.valor_lucro), 0);
+      const entradas = (despesasEntradas || []).filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
+      const bonus = (despesasEntradas || []).filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
+      const despesas = (despesasEntradas || []).filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
       
       const saldo = entradas + bonus - despesas + lucroTotal;
-      console.log('Saldo calculado:', { entradas, bonus, despesas, lucroTotal, saldo });
+      console.log('💰 Saldo calculado:', { entradas, bonus, despesas, lucroTotal, saldo });
       
-      return saldo || 0;
+      return saldo;
     } catch (error) {
-      console.error('Erro ao calcular saldo:', error);
+      console.error('❌ Erro ao calcular saldo:', error);
       return 0;
     }
   },
@@ -635,22 +737,14 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const { pedidos, despesasEntradas, produtos, eventos } = get();
       
-      console.log('Calculando dashboard com:', {
-        pedidos: (pedidos || []).length,
-        despesasEntradas: (despesasEntradas || []).length,
-        produtos: (produtos || []).length,
-        eventos: (eventos || []).length
-      });
+      const lucroTotal = (pedidos || []).reduce((sum, p) => sum + safeParseNumber(p.valor_lucro), 0);
+      const entradas = (despesasEntradas || []).filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
+      const bonus = (despesasEntradas || []).filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
+      const despesas = (despesasEntradas || []).filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + safeParseNumber(d.valor), 0);
       
-      const lucroTotal = (pedidos || []).reduce((sum, p) => sum + (Number(p.valor_lucro) || 0), 0);
-      const entradas = (despesasEntradas || []).filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
-      const bonus = (despesasEntradas || []).filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
-      const despesas = (despesasEntradas || []).filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (Number(d.valor) || 0), 0);
-      
-      // Usar a função centralizada para calcular saldo - GARANTINDO CONSISTÊNCIA TOTAL
       const saldoTotal = get().calculateSaldo();
       
-      const produtosEstoqueBaixo = (produtos || []).filter(p => (Number(p.estoque_atual) || 0) < (Number(p.estoque_minimo) || 0)).length;
+      const produtosEstoqueBaixo = (produtos || []).filter(p => safeParseNumber(p.estoque_atual) < safeParseNumber(p.estoque_minimo)).length;
       
       const hoje = new Date().toISOString().split('T')[0];
       const eventosHoje = (eventos || []).filter(e => e.data_evento === hoje && e.status === 'Pendente').length;
@@ -678,11 +772,11 @@ export const useStore = create<Store>((set, get) => ({
         eventos_proximos: eventosProximos
       };
       
-      console.log('Dashboard calculado:', dashboardData);
+      console.log('📊 Dashboard calculado:', dashboardData);
       
       return dashboardData;
     } catch (error) {
-      console.error('Erro ao calcular dashboard:', error);
+      console.error('❌ Erro ao calcular dashboard:', error);
       return {
         saldo_total: 0,
         lucro_total: 0,
@@ -698,9 +792,9 @@ export const useStore = create<Store>((set, get) => ({
 
   getEstoqueBaixo: () => {
     try {
-      return (get().produtos || []).filter(p => (Number(p.estoque_atual) || 0) < (Number(p.estoque_minimo) || 0));
+      return (get().produtos || []).filter(p => safeParseNumber(p.estoque_atual) < safeParseNumber(p.estoque_minimo));
     } catch (error) {
-      console.error('Erro ao obter estoque baixo:', error);
+      console.error('❌ Erro ao obter estoque baixo:', error);
       return [];
     }
   },
@@ -710,7 +804,7 @@ export const useStore = create<Store>((set, get) => ({
       const hoje = new Date().toISOString().split('T')[0];
       return (get().eventos || []).filter(e => e.data_evento === hoje && e.status === 'Pendente');
     } catch (error) {
-      console.error('Erro ao obter eventos hoje:', error);
+      console.error('❌ Erro ao obter eventos hoje:', error);
       return [];
     }
   },
@@ -729,8 +823,26 @@ export const useStore = create<Store>((set, get) => ({
         }
       });
     } catch (error) {
-      console.error('Erro ao obter eventos próximos:', error);
+      console.error('❌ Erro ao obter eventos próximos:', error);
       return [];
+    }
+  },
+
+  exportData: () => {
+    try {
+      localStore.exportData();
+    } catch (error) {
+      console.error('❌ Erro ao exportar dados:', error);
+      set({ error: 'Erro ao exportar dados' });
+    }
+  },
+
+  validateDataIntegrity: () => {
+    try {
+      return localStore.verifyDataIntegrity();
+    } catch (error) {
+      console.error('❌ Erro ao validar integridade:', error);
+      return false;
     }
   }
 }));
