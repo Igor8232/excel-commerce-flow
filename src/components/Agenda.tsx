@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -21,8 +20,8 @@ const Agenda = () => {
     descricao: '',
     data_evento: '',
     hora_evento: '',
-    tipo: 'Evento' as const,
-    status: 'Pendente' as const,
+    tipo: 'Evento' as 'Reunião' | 'Pagamento' | 'Entrega' | 'Evento' | 'Lembrete' | 'Outro',
+    status: 'Pendente' as 'Pendente' | 'Concluído' | 'Cancelado',
     cliente_id: '',
     valor: '',
     observacoes: '',
