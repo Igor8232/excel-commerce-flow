@@ -237,7 +237,7 @@ const Fiados = () => {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-gray-500 mb-4">Nenhum fiado registrado</p>
             <Dialog>
-              <DialogTrigger as C hild>
+              <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Registrar Primeiro Fiado
