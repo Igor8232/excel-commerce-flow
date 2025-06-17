@@ -1,4 +1,3 @@
-
 // Simulação do Excel Store usando localStorage
 export interface Cliente {
   id: string;
@@ -107,47 +106,48 @@ class LocalStore {
         this.write(sheet, []);
       }
     });
+  }
 
-    // Dados de exemplo
-    if (this.read('clientes').length === 0) {
-      this.write('clientes', [
-        {
-          id: '1',
-          nome: 'João Silva',
-          telefone: '(11) 99999-9999',
-          email: 'joao@email.com',
-          cidade: 'São Paulo',
-          estado: 'SP',
-          data_cadastro: new Date().toISOString().split('T')[0]
-        }
-      ]);
-    }
+  // Aplicar seed inicial
+  applySeed(): void {
+    const hoje = new Date().toISOString().split('T')[0];
+    
+    // Seed de clientes
+    this.write('clientes', [
+      {
+        id: Date.now().toString(),
+        nome: 'Empresa Exemplo',
+        telefone: '(11) 99999-9999',
+        email: 'exemplo@email.com',
+        cidade: 'São Paulo',
+        estado: 'SP',
+        data_cadastro: hoje
+      }
+    ]);
 
-    if (this.read('produtos').length === 0) {
-      this.write('produtos', [
-        {
-          id: '1',
-          nome: 'Produto Exemplo',
-          custo_producao: 10.00,
-          preco_sugerido: 25.00,
-          estoque_atual: 100,
-          estoque_minimo: 10
-        }
-      ]);
-    }
+    // Seed de produtos
+    this.write('produtos', [
+      {
+        id: (Date.now() + 1).toString(),
+        nome: 'Produto Demo',
+        custo_producao: 10.00,
+        preco_sugerido: 25.00,
+        estoque_atual: 10,
+        estoque_minimo: 2
+      }
+    ]);
 
-    if (this.read('despesas_entradas').length === 0) {
-      this.write('despesas_entradas', [
-        {
-          id: '1',
-          tipo: 'Entradas' as const,
-          descricao: 'Venda Inicial',
-          valor: 1000.00,
-          data_registro: new Date().toISOString().split('T')[0],
-          categoria: 'Vendas'
-        }
-      ]);
-    }
+    // Seed de despesas/entradas
+    this.write('despesas_entradas', [
+      {
+        id: (Date.now() + 2).toString(),
+        tipo: 'Bônus' as const,
+        descricao: 'Seed inicial',
+        valor: 0,
+        data_registro: hoje,
+        categoria: 'Inicial'
+      }
+    ]);
   }
 
   // Método para exportar dados (simula download)

@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato } from '@/lib/localStore';
 
@@ -66,32 +65,57 @@ export const useStore = create<Store>((set, get) => ({
     console.log('Carregando dados...');
     localStore.initializeData();
     
-    const clientes = localStore.read('clientes');
-    const produtos = localStore.read('produtos');
-    const pedidos = localStore.read('pedidos');
-    const itensPedido = localStore.read('itens_pedido');
-    const fiados = localStore.read('fiados');
-    const pagamentosFiado = localStore.read('pagamentos_fiado');
-    const despesasEntradas = localStore.read('despesas_entradas');
-    const comodatos = localStore.read('comodatos');
+    const clientes = localStore.read<Cliente>('clientes');
+    const produtos = localStore.read<Produto>('produtos');
+    const pedidos = localStore.read<Pedido>('pedidos');
+    const itensPedido = localStore.read<ItemPedido>('itens_pedido');
+    const fiados = localStore.read<Fiado>('fiados');
+    const pagamentosFiado = localStore.read<PagamentoFiado>('pagamentos_fiado');
+    const despesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas');
+    const comodatos = localStore.read<Comodato>('comodatos');
     
-    console.log('Dados carregados:', {
-      clientes: clientes.length,
-      produtos: produtos.length,
-      pedidos: pedidos.length,
-      despesasEntradas: despesasEntradas.length
-    });
+    // Verificar se precisa aplicar seed
+    const needsSeed = clientes.length === 0 && produtos.length === 0 && despesasEntradas.length === 0;
     
-    set({
-      clientes,
-      produtos,
-      pedidos,
-      itensPedido,
-      fiados,
-      pagamentosFiado,
-      despesasEntradas,
-      comodatos,
-    });
+    if (needsSeed) {
+      console.log('Seed applied');
+      // Aplicar seed automaticamente
+      localStore.applySeed();
+      
+      // Recarregar dados após seed
+      const seededClientes = localStore.read<Cliente>('clientes');
+      const seededProdutos = localStore.read<Produto>('produtos');
+      const seededDespesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas');
+      
+      set({
+        clientes: seededClientes,
+        produtos: seededProdutos,
+        pedidos,
+        itensPedido,
+        fiados,
+        pagamentosFiado,
+        despesasEntradas: seededDespesasEntradas,
+        comodatos,
+      });
+    } else {
+      console.log('Dados carregados:', {
+        clientes: clientes.length,
+        produtos: produtos.length,
+        pedidos: pedidos.length,
+        despesasEntradas: despesasEntradas.length
+      });
+      
+      set({
+        clientes,
+        produtos,
+        pedidos,
+        itensPedido,
+        fiados,
+        pagamentosFiado,
+        despesasEntradas,
+        comodatos,
+      });
+    }
   },
 
   addCliente: (cliente) => {
@@ -236,18 +260,18 @@ export const useStore = create<Store>((set, get) => ({
       produtos: produtos.length
     });
     
-    const lucroTotal = pedidos.reduce((sum, p) => sum + p.valor_lucro, 0);
-    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas' || d.tipo === 'Bônus').reduce((sum, d) => sum + d.valor, 0);
-    const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + d.valor, 0);
+    const lucroTotal = pedidos.reduce((sum, p) => sum + (p.valor_lucro || 0), 0);
+    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas' || d.tipo === 'Bônus').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
     const saldoTotal = entradas - despesas + lucroTotal;
     const produtosEstoqueBaixo = produtos.filter(p => p.estoque_atual < p.estoque_minimo).length;
 
     const dashboardData = {
-      saldo_total: saldoTotal,
-      lucro_total: lucroTotal,
-      total_entradas: entradas,
-      total_despesas: despesas,
-      produtos_estoque_baixo: produtosEstoqueBaixo
+      saldo_total: saldoTotal || 0,
+      lucro_total: lucroTotal || 0,
+      total_entradas: entradas || 0,
+      total_despesas: despesas || 0,
+      produtos_estoque_baixo: produtosEstoqueBaixo || 0
     };
     
     console.log('Dashboard calculado:', dashboardData);
