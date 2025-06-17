@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -71,7 +70,8 @@ const Clientes = () => {
     setIsDialogOpen(true);
   };
 
-  const isCNPJ = (cpfCnpj: string) => {
+  const isCNPJ = (cpfCnpj: string | undefined | null) => {
+    if (!cpfCnpj) return false;
     return cpfCnpj.replace(/\D/g, '').length === 14;
   };
 
@@ -231,14 +231,14 @@ const Clientes = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm">
-                <p><strong>Documento:</strong> {cliente.cpf_cnpj}</p>
+                <p><strong>Documento:</strong> {cliente.cpf_cnpj || 'Não informado'}</p>
                 {cliente.nome_fantasia && (
                   <p><strong>Nome Fantasia:</strong> {cliente.nome_fantasia}</p>
                 )}
-                <p><strong>Telefone:</strong> {cliente.telefone}</p>
-                <p><strong>Email:</strong> {cliente.email}</p>
-                <p><strong>Endereço:</strong> {cliente.endereco}</p>
-                <p><strong>Cidade:</strong> {cliente.cidade}/{cliente.estado}</p>
+                <p><strong>Telefone:</strong> {cliente.telefone || 'Não informado'}</p>
+                <p><strong>Email:</strong> {cliente.email || 'Não informado'}</p>
+                <p><strong>Endereço:</strong> {cliente.endereco || 'Não informado'}</p>
+                <p><strong>Cidade:</strong> {cliente.cidade || 'Não informado'}/{cliente.estado || 'Não informado'}</p>
                 {cliente.observacao && (
                   <p><strong>Obs:</strong> {cliente.observacao}</p>
                 )}
