@@ -1,4 +1,3 @@
-
 // Simulação do Excel Store usando localStorage com tratamento robusto de erros
 export interface Cliente {
   id: string;
@@ -297,9 +296,7 @@ class LocalStore {
       console.log('Dados exportados com sucesso');
     } catch (error) {
       console.error('Erro ao exportar dados:', error);
-      alert('Erro ao exportar dados. Tente nov
-
-amente.');
+      alert('Erro ao exportar dados. Tente novamente.');
     }
   }
 
