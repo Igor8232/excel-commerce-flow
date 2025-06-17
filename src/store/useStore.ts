@@ -58,11 +58,15 @@ interface Store {
     saldo_total: number;
     lucro_total: number;
     total_entradas: number;
+    total_bonus: number;
     total_despesas: number;
     produtos_estoque_baixo: number;
     eventos_hoje: number;
     eventos_proximos: number;
   };
+  
+  // Função centralizada para calcular saldo
+  calculateSaldo: () => number;
   
   getEstoqueBaixo: () => Produto[];
   getEventosHoje: () => Evento[];
@@ -386,6 +390,18 @@ export const useStore = create<Store>((set, get) => ({
     set({ eventos });
   },
 
+  // Função centralizada para calcular saldo - ESTA É A ÚNICA FONTE DA VERDADE
+  calculateSaldo: () => {
+    const { pedidos, despesasEntradas } = get();
+    
+    const lucroTotal = pedidos.reduce((sum, p) => sum + (p.valor_lucro || 0), 0);
+    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const bonus = despesasEntradas.filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
+    
+    return entradas + bonus - despesas + lucroTotal;
+  },
+
   getDashboardData: () => {
     const { pedidos, despesasEntradas, produtos, eventos } = get();
     
@@ -397,9 +413,13 @@ export const useStore = create<Store>((set, get) => ({
     });
     
     const lucroTotal = pedidos.reduce((sum, p) => sum + (p.valor_lucro || 0), 0);
-    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas' || d.tipo === 'Bônus').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const bonus = despesasEntradas.filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + (d.valor || 0), 0);
     const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
-    const saldoTotal = entradas - despesas + lucroTotal;
+    
+    // Usar a função centralizada para calcular saldo
+    const saldoTotal = get().calculateSaldo();
+    
     const produtosEstoqueBaixo = produtos.filter(p => p.estoque_atual < p.estoque_minimo).length;
     
     const hoje = new Date().toISOString().split('T')[0];
@@ -417,6 +437,7 @@ export const useStore = create<Store>((set, get) => ({
       saldo_total: saldoTotal || 0,
       lucro_total: lucroTotal || 0,
       total_entradas: entradas || 0,
+      total_bonus: bonus || 0,
       total_despesas: despesas || 0,
       produtos_estoque_baixo: produtosEstoqueBaixo || 0,
       eventos_hoje: eventosHoje || 0,

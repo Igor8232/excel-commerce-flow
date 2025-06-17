@@ -1,4 +1,5 @@
 
+
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 const DespesasEntradas = () => {
-  const { despesasEntradas, addDespesaEntrada } = useStore();
+  const { despesasEntradas, addDespesaEntrada, calculateSaldo, getDashboardData } = useStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     tipo: 'Entradas' as const,
@@ -69,16 +70,9 @@ const DespesasEntradas = () => {
     }
   };
 
-  // Calcular totais
-  const totais = despesasEntradas.reduce(
-    (acc, item) => {
-      if (item.tipo === 'Entradas') acc.entradas += item.valor;
-      else if (item.tipo === 'Bônus') acc.bonus += item.valor;
-      else acc.despesas += item.valor;
-      return acc;
-    },
-    { entradas: 0, bonus: 0, despesas: 0 }
-  );
+  // Usar os dados do dashboard para garantir sincronização total
+  const dashboardData = getDashboardData();
+  const saldoSincronizado = calculateSaldo();
 
   return (
     <div className="space-y-6">
@@ -149,15 +143,15 @@ const DespesasEntradas = () => {
         </Dialog>
       </div>
 
-      {/* Resumo Financeiro */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Resumo Financeiro - Usando dados sincronizados */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Entradas</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(totais.entradas)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.total_entradas)}</p>
               </div>
             </div>
           </CardContent>
@@ -169,7 +163,7 @@ const DespesasEntradas = () => {
               <DollarSign className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Bônus</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(totais.bonus)}</p>
+                <p className="text-2xl font-bold text-blue-600">{formatCurrency(dashboardData.total_bonus)}</p>
               </div>
             </div>
           </CardContent>
@@ -181,7 +175,19 @@ const DespesasEntradas = () => {
               <TrendingDown className="h-5 w-5 text-red-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Despesas</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totais.despesas)}</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(dashboardData.total_despesas)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Lucros</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.lucro_total)}</p>
               </div>
             </div>
           </CardContent>
@@ -192,9 +198,9 @@ const DespesasEntradas = () => {
             <div className="flex items-center space-x-2">
               <DollarSign className="h-5 w-5 text-gray-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Saldo</p>
-                <p className={`text-2xl font-bold ${(totais.entradas + totais.bonus - totais.despesas) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(totais.entradas + totais.bonus - totais.despesas)}
+                <p className="text-sm font-medium text-gray-600">Saldo Total</p>
+                <p className={`text-2xl font-bold ${saldoSincronizado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(saldoSincronizado)}
                 </p>
               </div>
             </div>
