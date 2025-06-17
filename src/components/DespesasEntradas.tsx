@@ -1,0 +1,255 @@
+
+import { useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Plus, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+
+const DespesasEntradas = () => {
+  const { despesasEntradas, addDespesaEntrada } = useStore();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    tipo: 'Entradas' as const,
+    descricao: '',
+    valor: '',
+    categoria: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addDespesaEntrada({
+      ...formData,
+      valor: parseFloat(formData.valor),
+      data_registro: new Date().toISOString().split('T')[0],
+    });
+    setFormData({
+      tipo: 'Entradas',
+      descricao: '',
+      valor: '',
+      categoria: '',
+    });
+    setIsDialogOpen(false);
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const getIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'Entradas':
+        return <TrendingUp className="h-5 w-5 text-green-600" />;
+      case 'Bônus':
+        return <DollarSign className="h-5 w-5 text-blue-600" />;
+      case 'Despesas':
+        return <TrendingDown className="h-5 w-5 text-red-600" />;
+      default:
+        return <DollarSign className="h-5 w-5" />;
+    }
+  };
+
+  const getBadgeVariant = (tipo: string) => {
+    switch (tipo) {
+      case 'Entradas':
+        return 'default';
+      case 'Bônus':
+        return 'secondary';
+      case 'Despesas':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
+  // Calcular totais
+  const totais = despesasEntradas.reduce(
+    (acc, item) => {
+      if (item.tipo === 'Entradas') acc.entradas += item.valor;
+      else if (item.tipo === 'Bônus') acc.bonus += item.valor;
+      else acc.despesas += item.valor;
+      return acc;
+    },
+    { entradas: 0, bonus: 0, despesas: 0 }
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Despesas e Entradas</h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Registro
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Novo Registro Financeiro</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label>Tipo</Label>
+                <Select value={formData.tipo} onValueChange={(value: any) => setFormData({...formData, tipo: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Entradas">Entradas</SelectItem>
+                    <SelectItem value="Bônus">Bônus</SelectItem>
+                    <SelectItem value="Despesas">Despesas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="descricao">Descrição</Label>
+                <Input
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(e) => setFormData({...formData, descricao: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="valor">Valor</Label>
+                <Input
+                  id="valor"
+                  type="number"
+                  step="0.01"
+                  value={formData.valor}
+                  onChange={(e) => setFormData({...formData, valor: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="categoria">Categoria</Label>
+                <Input
+                  id="categoria"
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                  placeholder="Ex: Vendas, Marketing, Operacional..."
+                />
+              </div>
+              <div className="flex space-x-2">
+                <Button type="submit">Salvar</Button>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Resumo Financeiro */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Entradas</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(totais.entradas)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <DollarSign className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Bônus</p>
+                <p className="text-2xl font-bold text-blue-600">{formatCurrency(totais.bonus)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <TrendingDown className="h-5 w-5 text-red-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Despesas</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totais.despesas)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <DollarSign className="h-5 w-5 text-gray-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Saldo</p>
+                <p className={`text-2xl font-bold ${(totais.entradas + totais.bonus - totais.despesas) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(totais.entradas + totais.bonus - totais.despesas)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Lista de Registros */}
+      <div className="space-y-4">
+        {despesasEntradas
+          .sort((a, b) => new Date(b.data_registro).getTime() - new Date(a.data_registro).getTime())
+          .map((item) => (
+          <Card key={item.id}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  {getIcon(item.tipo)}
+                  <div>
+                    <p className="font-medium">{item.descricao}</p>
+                    <p className="text-sm text-gray-600">
+                      {item.categoria} • {new Date(item.data_registro).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <p className={`text-lg font-bold ${item.tipo === 'Despesas' ? 'text-red-600' : 'text-green-600'}`}>
+                    {item.tipo === 'Despesas' ? '-' : '+'}{formatCurrency(item.valor)}
+                  </p>
+                  <Badge variant={getBadgeVariant(item.tipo)}>
+                    {item.tipo}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {despesasEntradas.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-gray-500 mb-4">Nenhum registro financeiro</p>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Fazer Primeiro Registro
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default DespesasEntradas;

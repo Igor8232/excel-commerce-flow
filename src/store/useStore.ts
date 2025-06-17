@@ -1,0 +1,233 @@
+
+import { create } from 'zustand';
+import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato } from '@/lib/localStore';
+
+interface Store {
+  // Estado
+  clientes: Cliente[];
+  produtos: Produto[];
+  pedidos: Pedido[];
+  itensPedido: ItemPedido[];
+  fiados: Fiado[];
+  pagamentosFiado: PagamentoFiado[];
+  despesasEntradas: DespesaEntrada[];
+  comodatos: Comodato[];
+
+  // Ações
+  loadData: () => void;
+  
+  // Clientes
+  addCliente: (cliente: Omit<Cliente, 'id'>) => void;
+  updateCliente: (id: string, cliente: Partial<Cliente>) => void;
+  deleteCliente: (id: string) => void;
+  
+  // Produtos
+  addProduto: (produto: Omit<Produto, 'id'>) => void;
+  updateProduto: (id: string, produto: Partial<Produto>) => void;
+  deleteProduto: (id: string) => void;
+  
+  // Pedidos
+  createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => void;
+  
+  // Fiados
+  addFiado: (fiado: Omit<Fiado, 'id'>) => void;
+  addPagamentoFiado: (pagamento: Omit<PagamentoFiado, 'id'>) => void;
+  
+  // Despesas/Entradas
+  addDespesaEntrada: (item: Omit<DespesaEntrada, 'id'>) => void;
+  
+  // Comodatos
+  addComodato: (comodato: Omit<Comodato, 'id'>) => void;
+  updateComodato: (id: string, comodato: Partial<Comodato>) => void;
+  
+  // Dashboard
+  getDashboardData: () => {
+    saldo_total: number;
+    lucro_total: number;
+    total_entradas: number;
+    total_despesas: number;
+    produtos_estoque_baixo: number;
+  };
+  
+  getEstoqueBaixo: () => Produto[];
+}
+
+export const useStore = create<Store>((set, get) => ({
+  clientes: [],
+  produtos: [],
+  pedidos: [],
+  itensPedido: [],
+  fiados: [],
+  pagamentosFiado: [],
+  despesasEntradas: [],
+  comodatos: [],
+
+  loadData: () => {
+    localStore.initializeData();
+    set({
+      clientes: localStore.read('clientes'),
+      produtos: localStore.read('produtos'),
+      pedidos: localStore.read('pedidos'),
+      itensPedido: localStore.read('itens_pedido'),
+      fiados: localStore.read('fiados'),
+      pagamentosFiado: localStore.read('pagamentos_fiado'),
+      despesasEntradas: localStore.read('despesas_entradas'),
+      comodatos: localStore.read('comodatos'),
+    });
+  },
+
+  addCliente: (cliente) => {
+    const newCliente = { ...cliente, id: Date.now().toString() };
+    const clientes = [...get().clientes, newCliente];
+    localStore.write('clientes', clientes);
+    set({ clientes });
+  },
+
+  updateCliente: (id, updates) => {
+    const clientes = get().clientes.map(c => c.id === id ? { ...c, ...updates } : c);
+    localStore.write('clientes', clientes);
+    set({ clientes });
+  },
+
+  deleteCliente: (id) => {
+    const clientes = get().clientes.filter(c => c.id !== id);
+    localStore.write('clientes', clientes);
+    set({ clientes });
+  },
+
+  addProduto: (produto) => {
+    const newProduto = { ...produto, id: Date.now().toString() };
+    const produtos = [...get().produtos, newProduto];
+    localStore.write('produtos', produtos);
+    set({ produtos });
+  },
+
+  updateProduto: (id, updates) => {
+    const produtos = get().produtos.map(p => p.id === id ? { ...p, ...updates } : p);
+    localStore.write('produtos', produtos);
+    set({ produtos });
+  },
+
+  deleteProduto: (id) => {
+    const produtos = get().produtos.filter(p => p.id !== id);
+    localStore.write('produtos', produtos);
+    set({ produtos });
+  },
+
+  createPedido: ({ cliente_id, itens }) => {
+    const pedidoId = Date.now().toString();
+    let valorTotal = 0;
+    let valorLucro = 0;
+    const novosItens: ItemPedido[] = [];
+    const produtos = [...get().produtos];
+
+    // Processar cada item do pedido
+    itens.forEach((item, index) => {
+      const produto = produtos.find(p => p.id === item.produto_id);
+      if (produto) {
+        const lucroItem = (item.preco_unitario - produto.custo_producao) * item.quantidade;
+        valorTotal += item.preco_unitario * item.quantidade;
+        valorLucro += lucroItem;
+
+        // Atualizar estoque
+        produto.estoque_atual -= item.quantidade;
+
+        // Criar item do pedido
+        novosItens.push({
+          id: `${pedidoId}_${index}`,
+          pedido_id: pedidoId,
+          produto_id: item.produto_id,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario,
+          custo_unitario: produto.custo_producao,
+          lucro_item: lucroItem
+        });
+      }
+    });
+
+    // Criar pedido
+    const novoPedido: Pedido = {
+      id: pedidoId,
+      cliente_id,
+      data_pedido: new Date().toISOString().split('T')[0],
+      valor_total: valorTotal,
+      valor_lucro: valorLucro
+    };
+
+    // Salvar tudo
+    const pedidos = [...get().pedidos, novoPedido];
+    const itensPedido = [...get().itensPedido, ...novosItens];
+    
+    localStore.write('pedidos', pedidos);
+    localStore.write('itens_pedido', itensPedido);
+    localStore.write('produtos', produtos);
+
+    set({ pedidos, itensPedido, produtos });
+  },
+
+  addFiado: (fiado) => {
+    const newFiado = { ...fiado, id: Date.now().toString() };
+    const fiados = [...get().fiados, newFiado];
+    localStore.write('fiados', fiados);
+    set({ fiados });
+  },
+
+  addPagamentoFiado: (pagamento) => {
+    const newPagamento = { ...pagamento, id: Date.now().toString() };
+    const pagamentosFiado = [...get().pagamentosFiado, newPagamento];
+    localStore.write('pagamentos_fiado', pagamentosFiado);
+    set({ pagamentosFiado });
+
+    // Atualizar valor pendente do fiado
+    const fiados = get().fiados.map(f => {
+      if (f.id === pagamento.fiado_id) {
+        return { ...f, valor_pago: f.valor_pago + pagamento.valor_pagamento, valor_pendente: f.valor_pendente - pagamento.valor_pagamento };
+      }
+      return f;
+    });
+    localStore.write('fiados', fiados);
+    set({ fiados });
+  },
+
+  addDespesaEntrada: (item) => {
+    const newItem = { ...item, id: Date.now().toString() };
+    const despesasEntradas = [...get().despesasEntradas, newItem];
+    localStore.write('despesas_entradas', despesasEntradas);
+    set({ despesasEntradas });
+  },
+
+  addComodato: (comodato) => {
+    const newComodato = { ...comodato, id: Date.now().toString() };
+    const comodatos = [...get().comodatos, newComodato];
+    localStore.write('comodatos', comodatos);
+    set({ comodatos });
+  },
+
+  updateComodato: (id, updates) => {
+    const comodatos = get().comodatos.map(c => c.id === id ? { ...c, ...updates } : c);
+    localStore.write('comodatos', comodatos);
+    set({ comodatos });
+  },
+
+  getDashboardData: () => {
+    const { pedidos, despesasEntradas, produtos } = get();
+    
+    const lucroTotal = pedidos.reduce((sum, p) => sum + p.valor_lucro, 0);
+    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas' || d.tipo === 'Bônus').reduce((sum, d) => sum + d.valor, 0);
+    const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + d.valor, 0);
+    const saldoTotal = entradas - despesas + lucroTotal;
+    const produtosEstoqueBaixo = produtos.filter(p => p.estoque_atual < p.estoque_minimo).length;
+
+    return {
+      saldo_total: saldoTotal,
+      lucro_total: lucroTotal,
+      total_entradas: entradas,
+      total_despesas: despesas,
+      produtos_estoque_baixo: produtosEstoqueBaixo
+    };
+  },
+
+  getEstoqueBaixo: () => {
+    return get().produtos.filter(p => p.estoque_atual < p.estoque_minimo);
+  }
+}));
