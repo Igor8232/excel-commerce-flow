@@ -3,7 +3,7 @@
   "name": "Sistema Comercial Excel",
   "short_name": "Comercial",
   "description": "Sistema completo de gestão comercial com armazenamento local",
-  "start_url": "./app.html",
+  "start_url": "../index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
@@ -17,13 +17,13 @@
   ],
   "categories": ["business", "productivity", "finance"],
   "lang": "pt-BR",
-  "scope": "./",
+  "scope": "../",
   "shortcuts": [
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Abrir dashboard principal",
-      "url": "./index.html#/dashboard",
+      "url": "../index.html#/dashboard",
       "icons": [
         {
           "src": "favicon.ico",
@@ -36,7 +36,7 @@
       "name": "Produtos",
       "short_name": "Produtos",
       "description": "Gerenciar produtos",
-      "url": "./index.html#/produtos",
+      "url": "../index.html#/produtos",
       "icons": [
         {
           "src": "favicon.ico",
@@ -49,7 +49,7 @@
       "name": "Pedidos",
       "short_name": "Pedidos",
       "description": "Gerenciar pedidos",
-      "url": "./index.html#/pedidos",
+      "url": "../index.html#/pedidos",
       "icons": [
         {
           "src": "favicon.ico",
