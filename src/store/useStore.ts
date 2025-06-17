@@ -27,6 +27,7 @@ interface Store {
   
   // Pedidos
   createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => void;
+  updatePedidoStatus: (id: string, status: 'pendente' | 'producao' | 'pronto' | 'entregue') => void;
   
   // Fiados
   addFiado: (fiado: Omit<Fiado, 'id'>) => void;
@@ -193,7 +194,8 @@ export const useStore = create<Store>((set, get) => ({
       cliente_id,
       data_pedido: new Date().toISOString().split('T')[0],
       valor_total: valorTotal,
-      valor_lucro: valorLucro
+      valor_lucro: valorLucro,
+      status: 'pendente'
     };
 
     // Salvar tudo
@@ -205,6 +207,12 @@ export const useStore = create<Store>((set, get) => ({
     localStore.write('produtos', produtos);
 
     set({ pedidos, itensPedido, produtos });
+  },
+
+  updatePedidoStatus: (id, status) => {
+    const pedidos = get().pedidos.map(p => p.id === id ? { ...p, status } : p);
+    localStore.write('pedidos', pedidos);
+    set({ pedidos });
   },
 
   addFiado: (fiado) => {

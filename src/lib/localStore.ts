@@ -24,6 +24,7 @@ export interface Pedido {
   data_pedido: string;
   valor_total: number;
   valor_lucro: number;
+  status: 'pendente' | 'producao' | 'pronto' | 'entregue';
 }
 
 export interface ItemPedido {
