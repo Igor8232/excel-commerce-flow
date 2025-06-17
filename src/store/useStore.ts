@@ -63,16 +63,34 @@ export const useStore = create<Store>((set, get) => ({
   comodatos: [],
 
   loadData: () => {
+    console.log('Carregando dados...');
     localStore.initializeData();
+    
+    const clientes = localStore.read('clientes');
+    const produtos = localStore.read('produtos');
+    const pedidos = localStore.read('pedidos');
+    const itensPedido = localStore.read('itens_pedido');
+    const fiados = localStore.read('fiados');
+    const pagamentosFiado = localStore.read('pagamentos_fiado');
+    const despesasEntradas = localStore.read('despesas_entradas');
+    const comodatos = localStore.read('comodatos');
+    
+    console.log('Dados carregados:', {
+      clientes: clientes.length,
+      produtos: produtos.length,
+      pedidos: pedidos.length,
+      despesasEntradas: despesasEntradas.length
+    });
+    
     set({
-      clientes: localStore.read('clientes'),
-      produtos: localStore.read('produtos'),
-      pedidos: localStore.read('pedidos'),
-      itensPedido: localStore.read('itens_pedido'),
-      fiados: localStore.read('fiados'),
-      pagamentosFiado: localStore.read('pagamentos_fiado'),
-      despesasEntradas: localStore.read('despesas_entradas'),
-      comodatos: localStore.read('comodatos'),
+      clientes,
+      produtos,
+      pedidos,
+      itensPedido,
+      fiados,
+      pagamentosFiado,
+      despesasEntradas,
+      comodatos,
     });
   },
 
@@ -212,19 +230,29 @@ export const useStore = create<Store>((set, get) => ({
   getDashboardData: () => {
     const { pedidos, despesasEntradas, produtos } = get();
     
+    console.log('Calculando dashboard com:', {
+      pedidos: pedidos.length,
+      despesasEntradas: despesasEntradas.length,
+      produtos: produtos.length
+    });
+    
     const lucroTotal = pedidos.reduce((sum, p) => sum + p.valor_lucro, 0);
     const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas' || d.tipo === 'Bônus').reduce((sum, d) => sum + d.valor, 0);
     const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + d.valor, 0);
     const saldoTotal = entradas - despesas + lucroTotal;
     const produtosEstoqueBaixo = produtos.filter(p => p.estoque_atual < p.estoque_minimo).length;
 
-    return {
+    const dashboardData = {
       saldo_total: saldoTotal,
       lucro_total: lucroTotal,
       total_entradas: entradas,
       total_despesas: despesas,
       produtos_estoque_baixo: produtosEstoqueBaixo
     };
+    
+    console.log('Dashboard calculado:', dashboardData);
+    
+    return dashboardData;
   },
 
   getEstoqueBaixo: () => {

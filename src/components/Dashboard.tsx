@@ -3,11 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/store/useStore';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, DollarSign, Package, AlertTriangle } from 'lucide-react';
+import { useEffect } from 'react';
 
 const Dashboard = () => {
-  const { getDashboardData, getEstoqueBaixo } = useStore();
+  const { getDashboardData, getEstoqueBaixo, loadData } = useStore();
+  
+  // Garantir que os dados sejam carregados
+  useEffect(() => {
+    console.log('Dashboard montado, carregando dados...');
+    loadData();
+  }, [loadData]);
+  
   const data = getDashboardData();
   const estoqueBaixo = getEstoqueBaixo();
+
+  console.log('Renderizando dashboard com dados:', data);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
