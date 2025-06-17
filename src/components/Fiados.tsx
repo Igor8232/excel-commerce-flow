@@ -8,13 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, CreditCard, DollarSign, Edit, Trash2 } from 'lucide-react';
 
 const Fiados = () => {
-  const { fiados, clientes, pedidos, addFiado, addPagamentoFiado } = useStore();
+  const { fiados, clientes, pedidos, addFiado, addPagamentoFiado, updateFiado, deleteFiado } = useStore();
   const [isFiadoDialogOpen, setIsFiadoDialogOpen] = useState(false);
   const [isPagamentoDialogOpen, setIsPagamentoDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedFiado, setSelectedFiado] = useState('');
+  const [editingFiado, setEditingFiado] = useState<any>(null);
   const [fiadoData, setFiadoData] = useState({
     cliente_id: '',
     pedido_id: '',
@@ -23,6 +25,12 @@ const Fiados = () => {
   });
   const [pagamentoData, setPagamentoData] = useState({
     valor_pagamento: '',
+  });
+  const [editFormData, setEditFormData] = useState({
+    cliente_id: '',
+    pedido_id: '',
+    valor_total: '',
+    data_vencimento: '',
   });
 
   const handleFiadoSubmit = (e: React.FormEvent) => {
@@ -55,6 +63,48 @@ const Fiados = () => {
     setPagamentoData({ valor_pagamento: '' });
     setSelectedFiado('');
     setIsPagamentoDialogOpen(false);
+  };
+
+  const handleEdit = (fiado: any) => {
+    setEditingFiado(fiado);
+    setEditFormData({
+      cliente_id: fiado.cliente_id,
+      pedido_id: fiado.pedido_id || '',
+      valor_total: fiado.valor_total.toString(),
+      data_vencimento: fiado.data_vencimento,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFiado) return;
+
+    const valorTotal = parseFloat(editFormData.valor_total);
+    const valorPendente = Math.max(0, valorTotal - editingFiado.valor_pago);
+
+    updateFiado(editingFiado.id, {
+      cliente_id: editFormData.cliente_id,
+      pedido_id: editFormData.pedido_id,
+      valor_total: valorTotal,
+      valor_pendente: valorPendente,
+      data_vencimento: editFormData.data_vencimento,
+    });
+
+    setEditingFiado(null);
+    setEditFormData({
+      cliente_id: '',
+      pedido_id: '',
+      valor_total: '',
+      data_vencimento: '',
+    });
+    setIsEditDialogOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este fiado?')) {
+      deleteFiado(id);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -201,6 +251,74 @@ const Fiados = () => {
         </div>
       </div>
 
+      {/* Dialog de Edição */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Fiado</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label>Cliente</Label>
+              <Select value={editFormData.cliente_id} onValueChange={(value) => setEditFormData({...editFormData, cliente_id: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map(cliente => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Pedido (opcional)</Label>
+              <Select value={editFormData.pedido_id} onValueChange={(value) => setEditFormData({...editFormData, pedido_id: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um pedido" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pedidos.map(pedido => (
+                    <SelectItem key={pedido.id} value={pedido.id}>
+                      Pedido #{pedido.id} - {formatCurrency(pedido.valor_total)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit_valor_total">Valor Total</Label>
+              <Input
+                id="edit_valor_total"
+                type="number"
+                step="0.01"
+                value={editFormData.valor_total}
+                onChange={(e) => setEditFormData({...editFormData, valor_total: e.target.value})}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_data_vencimento">Data de Vencimento</Label>
+              <Input
+                id="edit_data_vencimento"
+                type="date"
+                value={editFormData.data_vencimento}
+                onChange={(e) => setEditFormData({...editFormData, data_vencimento: e.target.value})}
+                required
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button type="submit">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {fiados.map((fiado) => (
           <Card key={fiado.id} className={fiado.valor_pendente > 0 && isVencido(fiado.data_vencimento) ? 'border-red-200 bg-red-50' : ''}>
@@ -210,13 +328,29 @@ const Fiados = () => {
                   <CreditCard className="h-5 w-5" />
                   <span>Fiado #{fiado.id}</span>
                 </div>
-                {fiado.valor_pendente === 0 ? (
-                  <Badge variant="secondary">Quitado</Badge>
-                ) : isVencido(fiado.data_vencimento) ? (
-                  <Badge variant="destructive">Vencido</Badge>
-                ) : (
-                  <Badge variant="outline">Pendente</Badge>
-                )}
+                <div className="flex items-center space-x-2">
+                  {fiado.valor_pendente === 0 ? (
+                    <Badge variant="secondary">Quitado</Badge>
+                  ) : isVencido(fiado.data_vencimento) ? (
+                    <Badge variant="destructive">Vencido</Badge>
+                  ) : (
+                    <Badge variant="outline">Pendente</Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(fiado)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(fiado.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>

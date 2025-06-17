@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ const Comodatos = () => {
   const { comodatos, clientes, produtos, addComodato, updateComodato, deleteComodato } = useStore();
   const [editingComodato, setEditingComodato] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     cliente_id: '',
     produto_id: '',
@@ -25,6 +25,18 @@ const Comodatos = () => {
     quantidade_vendida: '0',
     quantidade_paga: '0',
     observacoes: '',
+  });
+  const [editFormData, setEditFormData] = useState({
+    cliente_id: '',
+    produto_id: '',
+    quantidade: '',
+    data_prev_devolucao: '',
+    valor_garantia: '',
+    valor_unitario: '',
+    quantidade_vendida: '0',
+    quantidade_paga: '0',
+    observacoes: '',
+    status: 'Emprestado' as const,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -69,7 +81,7 @@ const Comodatos = () => {
 
   const handleEdit = (comodato: any) => {
     setEditingComodato(comodato);
-    setFormData({
+    setEditFormData({
       cliente_id: comodato.cliente_id,
       produto_id: comodato.produto_id,
       quantidade: comodato.quantidade.toString(),
@@ -79,8 +91,50 @@ const Comodatos = () => {
       quantidade_vendida: comodato.quantidade_vendida.toString(),
       quantidade_paga: comodato.quantidade_paga.toString(),
       observacoes: comodato.observacoes || '',
+      status: comodato.status,
     });
-    setIsDialogOpen(true);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingComodato) return;
+
+    const comodatoData = {
+      cliente_id: editFormData.cliente_id,
+      produto_id: editFormData.produto_id,
+      quantidade: parseInt(editFormData.quantidade),
+      data_prev_devolucao: editFormData.data_prev_devolucao,
+      valor_garantia: parseFloat(editFormData.valor_garantia),
+      valor_unitario: parseFloat(editFormData.valor_unitario),
+      quantidade_vendida: parseInt(editFormData.quantidade_vendida),
+      quantidade_paga: parseInt(editFormData.quantidade_paga),
+      observacoes: editFormData.observacoes,
+      status: editFormData.status,
+    };
+
+    updateComodato(editingComodato.id, comodatoData);
+    
+    setEditingComodato(null);
+    setEditFormData({
+      cliente_id: '',
+      produto_id: '',
+      quantidade: '',
+      data_prev_devolucao: '',
+      valor_garantia: '',
+      valor_unitario: '',
+      quantidade_vendida: '0',
+      quantidade_paga: '0',
+      observacoes: '',
+      status: 'Emprestado',
+    });
+    setIsEditDialogOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este comodato?')) {
+      deleteComodato(id);
+    }
   };
 
   const handleDevolucao = (comodatoId: string) => {
@@ -289,6 +343,155 @@ const Comodatos = () => {
         </Dialog>
       </div>
 
+      {/* Dialog de Edição */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Comodato</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Cliente</Label>
+                <Select value={editFormData.cliente_id} onValueChange={(value) => setEditFormData({...editFormData, cliente_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientes.map(cliente => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Produto</Label>
+                <Select value={editFormData.produto_id} onValueChange={(value) => setEditFormData({...editFormData, produto_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {produtos.map(produto => (
+                      <SelectItem key={produto.id} value={produto.id}>
+                        {produto.nome} (Estoque: {produto.estoque_atual})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="edit_quantidade">Quantidade Total</Label>
+                <Input
+                  id="edit_quantidade"
+                  type="number"
+                  min="1"
+                  value={editFormData.quantidade}
+                  onChange={(e) => setEditFormData({...editFormData, quantidade: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_valor_unitario">Valor Unitário</Label>
+                <Input
+                  id="edit_valor_unitario"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.valor_unitario}
+                  onChange={(e) => setEditFormData({...editFormData, valor_unitario: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_valor_garantia">Valor da Garantia</Label>
+                <Input
+                  id="edit_valor_garantia"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.valor_garantia}
+                  onChange={(e) => setEditFormData({...editFormData, valor_garantia: e.target.value})}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_quantidade_vendida">Quantidade Vendida</Label>
+                <Input
+                  id="edit_quantidade_vendida"
+                  type="number"
+                  min="0"
+                  max={editFormData.quantidade}
+                  value={editFormData.quantidade_vendida}
+                  onChange={(e) => setEditFormData({...editFormData, quantidade_vendida: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_quantidade_paga">Quantidade Paga</Label>
+                <Input
+                  id="edit_quantidade_paga"
+                  type="number"
+                  min="0"
+                  max={editFormData.quantidade}
+                  value={editFormData.quantidade_paga}
+                  onChange={(e) => setEditFormData({...editFormData, quantidade_paga: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_data_prev_devolucao">Data Prevista para Devolução</Label>
+                <Input
+                  id="edit_data_prev_devolucao"
+                  type="date"
+                  value={editFormData.data_prev_devolucao}
+                  onChange={(e) => setEditFormData({...editFormData, data_prev_devolucao: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={editFormData.status} onValueChange={(value: any) => setEditFormData({...editFormData, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Emprestado">Emprestado</SelectItem>
+                    <SelectItem value="Devolvido">Devolvido</SelectItem>
+                    <SelectItem value="Parcialmente Vendido">Parcialmente Vendido</SelectItem>
+                    <SelectItem value="Totalmente Vendido">Totalmente Vendido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_observacoes">Observações</Label>
+              <Textarea
+                id="edit_observacoes"
+                value={editFormData.observacoes}
+                onChange={(e) => setEditFormData({...editFormData, observacoes: e.target.value})}
+                placeholder="Informações adicionais sobre o comodato"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex space-x-2 pt-4">
+              <Button type="submit">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {comodatos.map((comodato) => (
           <Card 
@@ -320,7 +523,7 @@ const Comodatos = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => deleteComodato(comodato.id)}
+                      onClick={() => handleDelete(comodato.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

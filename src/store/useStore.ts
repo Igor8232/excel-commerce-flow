@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato, Evento } from '@/lib/localStore';
 
@@ -29,6 +28,7 @@ interface Store {
   
   // Pedidos
   createPedido: (pedido: { cliente_id: string; itens: Array<{ produto_id: string; quantidade: number; preco_unitario: number }> }) => void;
+  updatePedido: (id: string, pedido: Partial<Pedido>) => void;
   updatePedidoStatus: (id: string, status: 'pendente' | 'producao' | 'pronto' | 'entregue') => void;
   deletePedido: (id: string) => void;
   
@@ -320,6 +320,22 @@ export const useStore = create<Store>((set, get) => ({
       console.log('Pedido criado:', pedidoId, 'Valor total:', valorTotal, 'Lucro:', valorLucro);
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
+    }
+  },
+
+  updatePedido: (id, updates) => {
+    try {
+      const pedidos = get().pedidos.map(p => p.id === id ? { 
+        ...p, 
+        ...updates,
+        valor_total: Number(updates.valor_total ?? p.valor_total) || 0,
+        valor_lucro: Number(updates.valor_lucro ?? p.valor_lucro) || 0
+      } : p);
+      localStore.write('pedidos', pedidos);
+      set({ pedidos });
+      console.log('Pedido atualizado:', id);
+    } catch (error) {
+      console.error('Erro ao atualizar pedido:', error);
     }
   },
 

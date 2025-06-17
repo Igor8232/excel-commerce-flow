@@ -8,12 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Edit, Trash2 } from 'lucide-react';
 
 const DespesasEntradas = () => {
-  const { despesasEntradas, addDespesaEntrada, calculateSaldo, getDashboardData } = useStore();
+  const { despesasEntradas, addDespesaEntrada, updateDespesaEntrada, deleteDespesaEntrada, calculateSaldo, getDashboardData } = useStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState({
+    tipo: 'Entradas' as const,
+    descricao: '',
+    valor: '',
+    categoria: '',
+  });
+  const [editFormData, setEditFormData] = useState({
     tipo: 'Entradas' as const,
     descricao: '',
     valor: '',
@@ -48,6 +56,56 @@ const DespesasEntradas = () => {
       categoria: '',
     });
     setIsDialogOpen(false);
+  };
+
+  const handleEdit = (item: any) => {
+    setEditingItem(item);
+    setEditFormData({
+      tipo: item.tipo,
+      descricao: item.descricao,
+      valor: item.valor.toString(),
+      categoria: item.categoria || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    // Validação de dados
+    if (!editFormData.descricao.trim()) {
+      alert('Descrição é obrigatória');
+      return;
+    }
+    
+    const valor = Number(editFormData.valor);
+    if (isNaN(valor) || valor <= 0) {
+      alert('Valor deve ser um número válido maior que zero');
+      return;
+    }
+
+    updateDespesaEntrada(editingItem.id, {
+      tipo: editFormData.tipo,
+      descricao: editFormData.descricao,
+      valor,
+      categoria: editFormData.categoria,
+    });
+
+    setEditingItem(null);
+    setEditFormData({
+      tipo: 'Entradas',
+      descricao: '',
+      valor: '',
+      categoria: '',
+    });
+    setIsEditDialogOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este registro?')) {
+      deleteDespesaEntrada(id);
+    }
   };
 
   const formatCurrency = (value: number | undefined | null) => {
@@ -158,6 +216,66 @@ const DespesasEntradas = () => {
         </Dialog>
       </div>
 
+      {/* Dialog de Edição */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Registro Financeiro</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label>Tipo</Label>
+              <Select value={editFormData.tipo} onValueChange={(value: any) => setEditFormData({...editFormData, tipo: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Entradas">Entradas</SelectItem>
+                  <SelectItem value="Bônus">Bônus</SelectItem>
+                  <SelectItem value="Despesas">Despesas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit_descricao">Descrição</Label>
+              <Input
+                id="edit_descricao"
+                value={editFormData.descricao}
+                onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_valor">Valor</Label>
+              <Input
+                id="edit_valor"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={editFormData.valor}
+                onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_categoria">Categoria</Label>
+              <Input
+                id="edit_categoria"
+                value={editFormData.categoria}
+                onChange={(e) => setEditFormData({...editFormData, categoria: e.target.value})}
+                placeholder="Ex: Vendas, Marketing, Operacional..."
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button type="submit">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Resumo Financeiro - Usando dados sincronizados */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
@@ -247,6 +365,20 @@ const DespesasEntradas = () => {
                   <Badge variant={getBadgeVariant(item.tipo)}>
                     {item.tipo}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(item)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </CardContent>
