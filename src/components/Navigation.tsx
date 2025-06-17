@@ -9,6 +9,7 @@ import {
   CreditCard, 
   TrendingUp, 
   Handshake, 
+  Calendar,
   Settings 
 } from 'lucide-react';
 
@@ -21,6 +22,7 @@ const Navigation = () => {
     { path: '/produtos', label: 'Produtos', icon: Package },
     { path: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
     { path: '/fiados', label: 'Fiados', icon: CreditCard },
+    { path: '/agenda', label: 'Agenda', icon: Calendar },
     { path: '/despesas-entradas', label: 'Financeiro', icon: TrendingUp },
     { path: '/comodatos', label: 'Comodatos', icon: Handshake },
     { path: '/config', label: 'Config', icon: Settings },

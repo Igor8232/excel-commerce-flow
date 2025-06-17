@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato } from '@/lib/localStore';
+import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato, Evento } from '@/lib/localStore';
 
 interface Store {
   // Estado
@@ -11,6 +11,7 @@ interface Store {
   pagamentosFiado: PagamentoFiado[];
   despesasEntradas: DespesaEntrada[];
   comodatos: Comodato[];
+  eventos: Evento[];
 
   // Ações
   loadData: () => void;
@@ -47,6 +48,11 @@ interface Store {
   updateComodato: (id: string, comodato: Partial<Comodato>) => void;
   deleteComodato: (id: string) => void;
   
+  // Eventos
+  addEvento: (evento: Omit<Evento, 'id'>) => void;
+  updateEvento: (id: string, evento: Partial<Evento>) => void;
+  deleteEvento: (id: string) => void;
+  
   // Dashboard
   getDashboardData: () => {
     saldo_total: number;
@@ -54,9 +60,13 @@ interface Store {
     total_entradas: number;
     total_despesas: number;
     produtos_estoque_baixo: number;
+    eventos_hoje: number;
+    eventos_proximos: number;
   };
   
   getEstoqueBaixo: () => Produto[];
+  getEventosHoje: () => Evento[];
+  getEventosProximos: () => Evento[];
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -68,6 +78,7 @@ export const useStore = create<Store>((set, get) => ({
   pagamentosFiado: [],
   despesasEntradas: [],
   comodatos: [],
+  eventos: [],
 
   loadData: () => {
     console.log('Carregando dados...');
@@ -81,6 +92,7 @@ export const useStore = create<Store>((set, get) => ({
     const pagamentosFiado = localStore.read<PagamentoFiado>('pagamentos_fiado');
     const despesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas');
     const comodatos = localStore.read<Comodato>('comodatos');
+    const eventos = localStore.read<Evento>('eventos');
     
     // Verificar se precisa aplicar seed
     const needsSeed = clientes.length === 0 && produtos.length === 0 && despesasEntradas.length === 0;
@@ -102,13 +114,15 @@ export const useStore = create<Store>((set, get) => ({
         pagamentosFiado,
         despesasEntradas: seededDespesasEntradas,
         comodatos,
+        eventos,
       });
     } else {
       console.log('Dados carregados:', {
         clientes: clientes.length,
         produtos: produtos.length,
         pedidos: pedidos.length,
-        despesasEntradas: despesasEntradas.length
+        despesasEntradas: despesasEntradas.length,
+        eventos: eventos.length
       });
       
       set({
@@ -120,6 +134,7 @@ export const useStore = create<Store>((set, get) => ({
         pagamentosFiado,
         despesasEntradas,
         comodatos,
+        eventos,
       });
     }
   },
@@ -352,13 +367,33 @@ export const useStore = create<Store>((set, get) => ({
     set({ comodatos });
   },
 
+  addEvento: (evento) => {
+    const newEvento = { ...evento, id: Date.now().toString() };
+    const eventos = [...get().eventos, newEvento];
+    localStore.write('eventos', eventos);
+    set({ eventos });
+  },
+
+  updateEvento: (id, updates) => {
+    const eventos = get().eventos.map(e => e.id === id ? { ...e, ...updates } : e);
+    localStore.write('eventos', eventos);
+    set({ eventos });
+  },
+
+  deleteEvento: (id) => {
+    const eventos = get().eventos.filter(e => e.id !== id);
+    localStore.write('eventos', eventos);
+    set({ eventos });
+  },
+
   getDashboardData: () => {
-    const { pedidos, despesasEntradas, produtos } = get();
+    const { pedidos, despesasEntradas, produtos, eventos } = get();
     
     console.log('Calculando dashboard com:', {
       pedidos: pedidos.length,
       despesasEntradas: despesasEntradas.length,
-      produtos: produtos.length
+      produtos: produtos.length,
+      eventos: eventos.length
     });
     
     const lucroTotal = pedidos.reduce((sum, p) => sum + (p.valor_lucro || 0), 0);
@@ -366,13 +401,26 @@ export const useStore = create<Store>((set, get) => ({
     const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
     const saldoTotal = entradas - despesas + lucroTotal;
     const produtosEstoqueBaixo = produtos.filter(p => p.estoque_atual < p.estoque_minimo).length;
+    
+    const hoje = new Date().toISOString().split('T')[0];
+    const eventosHoje = eventos.filter(e => e.data_evento === hoje && e.status === 'Pendente').length;
+    
+    const proximosDias = new Date();
+    proximosDias.setDate(proximosDias.getDate() + 7);
+    const eventosProximos = eventos.filter(e => {
+      const dataEvento = new Date(e.data_evento);
+      const agora = new Date();
+      return dataEvento > agora && dataEvento <= proximosDias && e.status === 'Pendente';
+    }).length;
 
     const dashboardData = {
       saldo_total: saldoTotal || 0,
       lucro_total: lucroTotal || 0,
       total_entradas: entradas || 0,
       total_despesas: despesas || 0,
-      produtos_estoque_baixo: produtosEstoqueBaixo || 0
+      produtos_estoque_baixo: produtosEstoqueBaixo || 0,
+      eventos_hoje: eventosHoje || 0,
+      eventos_proximos: eventosProximos || 0
     };
     
     console.log('Dashboard calculado:', dashboardData);
@@ -382,5 +430,20 @@ export const useStore = create<Store>((set, get) => ({
 
   getEstoqueBaixo: () => {
     return get().produtos.filter(p => p.estoque_atual < p.estoque_minimo);
+  },
+
+  getEventosHoje: () => {
+    const hoje = new Date().toISOString().split('T')[0];
+    return get().eventos.filter(e => e.data_evento === hoje && e.status === 'Pendente');
+  },
+
+  getEventosProximos: () => {
+    const proximosDias = new Date();
+    proximosDias.setDate(proximosDias.getDate() + 7);
+    const agora = new Date();
+    return get().eventos.filter(e => {
+      const dataEvento = new Date(e.data_evento);
+      return dataEvento > agora && dataEvento <= proximosDias && e.status === 'Pendente';
+    });
   }
 }));

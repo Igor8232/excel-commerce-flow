@@ -1,4 +1,3 @@
-
 // Simulação do Excel Store usando localStorage
 export interface Cliente {
   id: string;
@@ -90,6 +89,20 @@ export interface Comodato {
   status: 'Emprestado' | 'Devolvido' | 'Parcialmente Vendido' | 'Totalmente Vendido';
 }
 
+export interface Evento {
+  id: string;
+  titulo: string;
+  descricao: string;
+  data_evento: string;
+  hora_evento: string;
+  tipo: 'Reunião' | 'Pagamento' | 'Entrega' | 'Evento' | 'Lembrete' | 'Outro';
+  status: 'Pendente' | 'Concluído' | 'Cancelado';
+  cliente_id?: string;
+  valor?: number;
+  observacoes?: string;
+  data_criacao: string;
+}
+
 class LocalStore {
   private getKey(sheet: string): string {
     return `excel_commerce_${sheet}`;
@@ -115,7 +128,7 @@ class LocalStore {
 
   // Inicializar dados de exemplo se não existirem
   initializeData(): void {
-    const sheets = ['clientes', 'produtos', 'pedidos', 'itens_pedido', 'fiados', 'pagamentos_fiado', 'despesas_entradas', 'comodatos'];
+    const sheets = ['clientes', 'produtos', 'pedidos', 'itens_pedido', 'fiados', 'pagamentos_fiado', 'despesas_entradas', 'comodatos', 'eventos'];
     
     sheets.forEach(sheet => {
       if (!localStorage.getItem(this.getKey(sheet))) {
@@ -184,7 +197,8 @@ class LocalStore {
       fiados: this.read('fiados'),
       pagamentos_fiado: this.read('pagamentos_fiado'),
       despesas_entradas: this.read('despesas_entradas'),
-      comodatos: this.read('comodatos')
+      comodatos: this.read('comodatos'),
+      eventos: this.read('eventos')
     };
 
     const dataStr = JSON.stringify(allData, null, 2);

@@ -9,6 +9,7 @@ import Clientes from "./components/Clientes";
 import Produtos from "./components/Produtos";
 import Pedidos from "./components/Pedidos";
 import Fiados from "./components/Fiados";
+import Agenda from "./components/Agenda";
 import DespesasEntradas from "./components/DespesasEntradas";
 import Comodatos from "./components/Comodatos";
 import Config from "./components/Config";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="produtos" element={<Produtos />} />
             <Route path="pedidos" element={<Pedidos />} />
             <Route path="fiados" element={<Fiados />} />
+            <Route path="agenda" element={<Agenda />} />
             <Route path="despesas-entradas" element={<DespesasEntradas />} />
             <Route path="comodatos" element={<Comodatos />} />
             <Route path="config" element={<Config />} />

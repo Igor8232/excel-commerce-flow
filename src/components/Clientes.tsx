@@ -162,7 +162,7 @@ const Clientes = () => {
                   <Label htmlFor="cidade">Cidade</Label>
                   <Input
                     id="cidade"
-                    value={form
+                    value={formData.cidade}
                     onChange={(e) => setFormData({...formData, cidade: e.target.value})}
                   />
                 </div>
