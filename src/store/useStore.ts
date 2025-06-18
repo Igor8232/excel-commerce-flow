@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { localStore, Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato, Evento } from '@/lib/localStore';
+import { excelStore } from '@/lib/excelStore';
+import type { Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato, Evento } from '@/lib/types';
 
 interface Store {
   // Estado
@@ -16,7 +17,7 @@ interface Store {
   error: string | null;
 
   // Ações
-  loadData: () => void;
+  loadData: () => Promise<void>;
   
   // Clientes
   addCliente: (cliente: Omit<Cliente, 'id'>) => Promise<boolean>;
@@ -75,8 +76,8 @@ interface Store {
   
   // Utilitários
   clearError: () => void;
-  exportData: () => void;
-  validateDataIntegrity: () => boolean;
+  exportData: () => Promise<void>;
+  validateDataIntegrity: () => Promise<boolean>;
 }
 
 const safeParseNumber = (value: any): number => {
@@ -103,33 +104,47 @@ export const useStore = create<Store>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  loadData: () => {
+  loadData: async () => {
     console.log('🔄 Iniciando carregamento de dados...');
     set({ isLoading: true, error: null });
     
     try {
-      localStore.initializeData();
+      await excelStore.initializeData();
       
-      const clientes = localStore.read<Cliente>('clientes') || [];
-      const produtos = localStore.read<Produto>('produtos') || [];
-      const pedidos = localStore.read<Pedido>('pedidos') || [];
-      const itensPedido = localStore.read<ItemPedido>('itens_pedido') || [];
-      const fiados = localStore.read<Fiado>('fiados') || [];
-      const pagamentosFiado = localStore.read<PagamentoFiado>('pagamentos_fiado') || [];
-      const despesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas') || [];
-      const comodatos = localStore.read<Comodato>('comodatos') || [];
-      const eventos = localStore.read<Evento>('eventos') || [];
+      const [
+        clientes,
+        produtos,
+        pedidos,
+        itensPedido,
+        fiados,
+        pagamentosFiado,
+        despesasEntradas,
+        comodatos,
+        eventos
+      ] = await Promise.all([
+        excelStore.read<Cliente>('clientes'),
+        excelStore.read<Produto>('produtos'),
+        excelStore.read<Pedido>('pedidos'),
+        excelStore.read<ItemPedido>('itens_pedido'),
+        excelStore.read<Fiado>('fiados'),
+        excelStore.read<PagamentoFiado>('pagamentos_fiado'),
+        excelStore.read<DespesaEntrada>('despesas_entradas'),
+        excelStore.read<Comodato>('comodatos'),
+        excelStore.read<Evento>('eventos')
+      ]);
       
       // Verificar se precisa aplicar seed
       const needsSeed = clientes.length === 0 && produtos.length === 0 && despesasEntradas.length === 0;
       
       if (needsSeed) {
         console.log('🌱 Aplicando dados iniciais...');
-        localStore.applySeed();
+        await excelStore.applySeed();
         
-        const seededClientes = localStore.read<Cliente>('clientes') || [];
-        const seededProdutos = localStore.read<Produto>('produtos') || [];
-        const seededDespesasEntradas = localStore.read<DespesaEntrada>('despesas_entradas') || [];
+        const [seededClientes, seededProdutos, seededDespesasEntradas] = await Promise.all([
+          excelStore.read<Cliente>('clientes'),
+          excelStore.read<Produto>('produtos'),
+          excelStore.read<DespesaEntrada>('despesas_entradas')
+        ]);
         
         set({
           clientes: seededClientes,
@@ -167,7 +182,7 @@ export const useStore = create<Store>((set, get) => ({
       }
       
       // Verificar integridade dos dados
-      get().validateDataIntegrity();
+      await get().validateDataIntegrity();
       
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);
@@ -182,7 +197,7 @@ export const useStore = create<Store>((set, get) => ({
         comodatos: [],
         eventos: [],
         isLoading: false,
-        error: 'Erro ao carregar dados do sistema'
+        error: 'Erro ao carregar dados do sistema. Verifique se a API está rodando.'
       });
     }
   },
@@ -195,10 +210,13 @@ export const useStore = create<Store>((set, get) => ({
         data_cadastro: cliente.data_cadastro || new Date().toISOString().split('T')[0]
       };
       const clientes = [...get().clientes, newCliente];
-      localStore.write('clientes', clientes);
-      set({ clientes });
-      console.log('✅ Cliente adicionado:', newCliente.nome);
-      return true;
+      const success = await excelStore.write('clientes', clientes);
+      if (success) {
+        set({ clientes });
+        console.log('✅ Cliente adicionado:', newCliente.nome);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar cliente:', error);
       set({ error: 'Erro ao adicionar cliente' });
@@ -209,10 +227,13 @@ export const useStore = create<Store>((set, get) => ({
   updateCliente: async (id, updates) => {
     try {
       const clientes = get().clientes.map(c => c.id === id ? { ...c, ...updates } : c);
-      localStore.write('clientes', clientes);
-      set({ clientes });
-      console.log('✅ Cliente atualizado:', id);
-      return true;
+      const success = await excelStore.write('clientes', clientes);
+      if (success) {
+        set({ clientes });
+        console.log('✅ Cliente atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar cliente:', error);
       set({ error: 'Erro ao atualizar cliente' });
@@ -223,10 +244,13 @@ export const useStore = create<Store>((set, get) => ({
   deleteCliente: async (id) => {
     try {
       const clientes = get().clientes.filter(c => c.id !== id);
-      localStore.write('clientes', clientes);
-      set({ clientes });
-      console.log('✅ Cliente deletado:', id);
-      return true;
+      const success = await excelStore.write('clientes', clientes);
+      if (success) {
+        set({ clientes });
+        console.log('✅ Cliente deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar cliente:', error);
       set({ error: 'Erro ao deletar cliente' });
@@ -254,10 +278,13 @@ export const useStore = create<Store>((set, get) => ({
         estoque_minimo: safeParseNumber(produto.estoque_minimo)
       };
       const produtos = [...get().produtos, newProduto];
-      localStore.write('produtos', produtos);
-      set({ produtos });
-      console.log('✅ Produto adicionado:', newProduto.nome);
-      return true;
+      const success = await excelStore.write('produtos', produtos);
+      if (success) {
+        set({ produtos });
+        console.log('✅ Produto adicionado:', newProduto.nome);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar produto:', error);
       set({ error: 'Erro ao adicionar produto' });
@@ -282,10 +309,13 @@ export const useStore = create<Store>((set, get) => ({
         }
         return p;
       });
-      localStore.write('produtos', produtos);
-      set({ produtos });
-      console.log('✅ Produto atualizado:', id);
-      return true;
+      const success = await excelStore.write('produtos', produtos);
+      if (success) {
+        set({ produtos });
+        console.log('✅ Produto atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar produto:', error);
       set({ error: 'Erro ao atualizar produto' });
@@ -296,10 +326,13 @@ export const useStore = create<Store>((set, get) => ({
   deleteProduto: async (id) => {
     try {
       const produtos = get().produtos.filter(p => p.id !== id);
-      localStore.write('produtos', produtos);
-      set({ produtos });
-      console.log('✅ Produto deletado:', id);
-      return true;
+      const success = await excelStore.write('produtos', produtos);
+      if (success) {
+        set({ produtos });
+        console.log('✅ Produto deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar produto:', error);
       set({ error: 'Erro ao deletar produto' });
@@ -361,13 +394,18 @@ export const useStore = create<Store>((set, get) => ({
       const pedidos = [...get().pedidos, novoPedido];
       const itensPedido = [...get().itensPedido, ...novosItens];
       
-      localStore.write('pedidos', pedidos);
-      localStore.write('itens_pedido', itensPedido);
-      localStore.write('produtos', produtos);
+      const [pedidoSuccess, itensSuccess, produtoSuccess] = await Promise.all([
+        excelStore.write('pedidos', pedidos),
+        excelStore.write('itens_pedido', itensPedido),
+        excelStore.write('produtos', produtos)
+      ]);
 
-      set({ pedidos, itensPedido, produtos });
-      console.log('✅ Pedido criado:', pedidoId, 'Valor total:', valorTotal, 'Lucro:', valorLucro);
-      return true;
+      if (pedidoSuccess && itensSuccess && produtoSuccess) {
+        set({ pedidos, itensPedido, produtos });
+        console.log('✅ Pedido criado:', pedidoId, 'Valor total:', valorTotal, 'Lucro:', valorLucro);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao criar pedido:', error);
       set({ error: 'Erro ao criar pedido' });
@@ -383,10 +421,13 @@ export const useStore = create<Store>((set, get) => ({
         valor_total: safeParseNumber(updates.valor_total ?? p.valor_total),
         valor_lucro: safeParseNumber(updates.valor_lucro ?? p.valor_lucro)
       } : p);
-      localStore.write('pedidos', pedidos);
-      set({ pedidos });
-      console.log('✅ Pedido atualizado:', id);
-      return true;
+      const success = await excelStore.write('pedidos', pedidos);
+      if (success) {
+        set({ pedidos });
+        console.log('✅ Pedido atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar pedido:', error);
       set({ error: 'Erro ao atualizar pedido' });
@@ -397,10 +438,13 @@ export const useStore = create<Store>((set, get) => ({
   updatePedidoStatus: async (id, status) => {
     try {
       const pedidos = get().pedidos.map(p => p.id === id ? { ...p, status } : p);
-      localStore.write('pedidos', pedidos);
-      set({ pedidos });
-      console.log('✅ Status do pedido atualizado:', id, status);
-      return true;
+      const success = await excelStore.write('pedidos', pedidos);
+      if (success) {
+        set({ pedidos });
+        console.log('✅ Status do pedido atualizado:', id, status);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar status do pedido:', error);
       set({ error: 'Erro ao atualizar status do pedido' });
@@ -412,11 +456,16 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const pedidos = get().pedidos.filter(p => p.id !== id);
       const itensPedido = get().itensPedido.filter(i => i.pedido_id !== id);
-      localStore.write('pedidos', pedidos);
-      localStore.write('itens_pedido', itensPedido);
-      set({ pedidos, itensPedido });
-      console.log('✅ Pedido deletado:', id);
-      return true;
+      const [pedidoSuccess, itensSuccess] = await Promise.all([
+        excelStore.write('pedidos', pedidos),
+        excelStore.write('itens_pedido', itensPedido)
+      ]);
+      if (pedidoSuccess && itensSuccess) {
+        set({ pedidos, itensPedido });
+        console.log('✅ Pedido deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar pedido:', error);
       set({ error: 'Erro ao deletar pedido' });
@@ -434,10 +483,13 @@ export const useStore = create<Store>((set, get) => ({
         valor_pendente: safeParseNumber(fiado.valor_pendente)
       };
       const fiados = [...get().fiados, newFiado];
-      localStore.write('fiados', fiados);
-      set({ fiados });
-      console.log('✅ Fiado adicionado:', newFiado.id);
-      return true;
+      const success = await excelStore.write('fiados', fiados);
+      if (success) {
+        set({ fiados });
+        console.log('✅ Fiado adicionado:', newFiado.id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar fiado:', error);
       set({ error: 'Erro ao adicionar fiado' });
@@ -454,10 +506,13 @@ export const useStore = create<Store>((set, get) => ({
         valor_pago: safeParseNumber(updates.valor_pago ?? f.valor_pago),
         valor_pendente: safeParseNumber(updates.valor_pendente ?? f.valor_pendente)
       } : f);
-      localStore.write('fiados', fiados);
-      set({ fiados });
-      console.log('✅ Fiado atualizado:', id);
-      return true;
+      const success = await excelStore.write('fiados', fiados);
+      if (success) {
+        set({ fiados });
+        console.log('✅ Fiado atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar fiado:', error);
       set({ error: 'Erro ao atualizar fiado' });
@@ -469,11 +524,16 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const fiados = get().fiados.filter(f => f.id !== id);
       const pagamentosFiado = get().pagamentosFiado.filter(p => p.fiado_id !== id);
-      localStore.write('fiados', fiados);
-      localStore.write('pagamentos_fiado', pagamentosFiado);
-      set({ fiados, pagamentosFiado });
-      console.log('✅ Fiado deletado:', id);
-      return true;
+      const [fiadoSuccess, pagamentoSuccess] = await Promise.all([
+        excelStore.write('fiados', fiados),
+        excelStore.write('pagamentos_fiado', pagamentosFiado)
+      ]);
+      if (fiadoSuccess && pagamentoSuccess) {
+        set({ fiados, pagamentosFiado });
+        console.log('✅ Fiado deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar fiado:', error);
       set({ error: 'Erro ao deletar fiado' });
@@ -490,9 +550,7 @@ export const useStore = create<Store>((set, get) => ({
         valor_pagamento: valorPagamento
       };
       const pagamentosFiado = [...get().pagamentosFiado, newPagamento];
-      localStore.write('pagamentos_fiado', pagamentosFiado);
-      set({ pagamentosFiado });
-
+      
       // Atualizar valor pendente do fiado
       const fiados = get().fiados.map(f => {
         if (f.id === pagamento.fiado_id) {
@@ -506,10 +564,18 @@ export const useStore = create<Store>((set, get) => ({
         }
         return f;
       });
-      localStore.write('fiados', fiados);
-      set({ fiados });
-      console.log('✅ Pagamento de fiado adicionado:', newPagamento.id);
-      return true;
+      
+      const [pagamentoSuccess, fiadoSuccess] = await Promise.all([
+        excelStore.write('pagamentos_fiado', pagamentosFiado),
+        excelStore.write('fiados', fiados)
+      ]);
+      
+      if (pagamentoSuccess && fiadoSuccess) {
+        set({ pagamentosFiado, fiados });
+        console.log('✅ Pagamento de fiado adicionado:', newPagamento.id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar pagamento de fiado:', error);
       set({ error: 'Erro ao adicionar pagamento de fiado' });
@@ -520,10 +586,13 @@ export const useStore = create<Store>((set, get) => ({
   deletePagamentoFiado: async (id) => {
     try {
       const pagamentosFiado = get().pagamentosFiado.filter(p => p.id !== id);
-      localStore.write('pagamentos_fiado', pagamentosFiado);
-      set({ pagamentosFiado });
-      console.log('✅ Pagamento de fiado deletado:', id);
-      return true;
+      const success = await excelStore.write('pagamentos_fiado', pagamentosFiado);
+      if (success) {
+        set({ pagamentosFiado });
+        console.log('✅ Pagamento de fiado deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar pagamento de fiado:', error);
       set({ error: 'Erro ao deletar pagamento de fiado' });
@@ -539,10 +608,13 @@ export const useStore = create<Store>((set, get) => ({
         valor: safeParseNumber(item.valor)
       };
       const despesasEntradas = [...get().despesasEntradas, newItem];
-      localStore.write('despesas_entradas', despesasEntradas);
-      set({ despesasEntradas });
-      console.log('✅ Despesa/Entrada adicionada:', newItem.tipo, newItem.valor);
-      return true;
+      const success = await excelStore.write('despesas_entradas', despesasEntradas);
+      if (success) {
+        set({ despesasEntradas });
+        console.log('✅ Despesa/Entrada adicionada:', newItem.tipo, newItem.valor);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar despesa/entrada:', error);
       set({ error: 'Erro ao adicionar despesa/entrada' });
@@ -557,10 +629,13 @@ export const useStore = create<Store>((set, get) => ({
         ...updates,
         valor: safeParseNumber(updates.valor ?? d.valor)
       } : d);
-      localStore.write('despesas_entradas', despesasEntradas);
-      set({ despesasEntradas });
-      console.log('✅ Despesa/Entrada atualizada:', id);
-      return true;
+      const success = await excelStore.write('despesas_entradas', despesasEntradas);
+      if (success) {
+        set({ despesasEntradas });
+        console.log('✅ Despesa/Entrada atualizada:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar despesa/entrada:', error);
       set({ error: 'Erro ao atualizar despesa/entrada' });
@@ -571,10 +646,13 @@ export const useStore = create<Store>((set, get) => ({
   deleteDespesaEntrada: async (id) => {
     try {
       const despesasEntradas = get().despesasEntradas.filter(d => d.id !== id);
-      localStore.write('despesas_entradas', despesasEntradas);
-      set({ despesasEntradas });
-      console.log('✅ Despesa/Entrada deletada:', id);
-      return true;
+      const success = await excelStore.write('despesas_entradas', despesasEntradas);
+      if (success) {
+        set({ despesasEntradas });
+        console.log('✅ Despesa/Entrada deletada:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar despesa/entrada:', error);
       set({ error: 'Erro ao deletar despesa/entrada' });
@@ -604,10 +682,13 @@ export const useStore = create<Store>((set, get) => ({
         valor_garantia: safeParseNumber(comodato.valor_garantia)
       };
       const comodatos = [...get().comodatos, newComodato];
-      localStore.write('comodatos', comodatos);
-      set({ comodatos });
-      console.log('✅ Comodato adicionado:', newComodato.id);
-      return true;
+      const success = await excelStore.write('comodatos', comodatos);
+      if (success) {
+        set({ comodatos });
+        console.log('✅ Comodato adicionado:', newComodato.id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar comodato:', error);
       set({ error: 'Erro ao adicionar comodato' });
@@ -637,10 +718,13 @@ export const useStore = create<Store>((set, get) => ({
         }
         return c;
       });
-      localStore.write('comodatos', comodatos);
-      set({ comodatos });
-      console.log('✅ Comodato atualizado:', id);
-      return true;
+      const success = await excelStore.write('comodatos', comodatos);
+      if (success) {
+        set({ comodatos });
+        console.log('✅ Comodato atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar comodato:', error);
       set({ error: 'Erro ao atualizar comodato' });
@@ -651,10 +735,13 @@ export const useStore = create<Store>((set, get) => ({
   deleteComodato: async (id) => {
     try {
       const comodatos = get().comodatos.filter(c => c.id !== id);
-      localStore.write('comodatos', comodatos);
-      set({ comodatos });
-      console.log('✅ Comodato deletado:', id);
-      return true;
+      const success = await excelStore.write('comodatos', comodatos);
+      if (success) {
+        set({ comodatos });
+        console.log('✅ Comodato deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar comodato:', error);
       set({ error: 'Erro ao deletar comodato' });
@@ -671,10 +758,13 @@ export const useStore = create<Store>((set, get) => ({
         data_criacao: new Date().toISOString().split('T')[0]
       };
       const eventos = [...get().eventos, newEvento];
-      localStore.write('eventos', eventos);
-      set({ eventos });
-      console.log('✅ Evento adicionado:', newEvento.titulo);
-      return true;
+      const success = await excelStore.write('eventos', eventos);
+      if (success) {
+        set({ eventos });
+        console.log('✅ Evento adicionado:', newEvento.titulo);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao adicionar evento:', error);
       set({ error: 'Erro ao adicionar evento' });
@@ -689,10 +779,13 @@ export const useStore = create<Store>((set, get) => ({
         ...updates,
         valor: safeParseNumber(updates.valor ?? e.valor)
       } : e);
-      localStore.write('eventos', eventos);
-      set({ eventos });
-      console.log('✅ Evento atualizado:', id);
-      return true;
+      const success = await excelStore.write('eventos', eventos);
+      if (success) {
+        set({ eventos });
+        console.log('✅ Evento atualizado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao atualizar evento:', error);
       set({ error: 'Erro ao atualizar evento' });
@@ -703,10 +796,13 @@ export const useStore = create<Store>((set, get) => ({
   deleteEvento: async (id) => {
     try {
       const eventos = get().eventos.filter(e => e.id !== id);
-      localStore.write('eventos', eventos);
-      set({ eventos });
-      console.log('✅ Evento deletado:', id);
-      return true;
+      const success = await excelStore.write('eventos', eventos);
+      if (success) {
+        set({ eventos });
+        console.log('✅ Evento deletado:', id);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erro ao deletar evento:', error);
       set({ error: 'Erro ao deletar evento' });
@@ -828,18 +924,21 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  exportData: () => {
+  exportData: async () => {
     try {
-      localStore.exportData();
+      await excelStore.exportData();
+      console.log('✅ Dados exportados com sucesso');
     } catch (error) {
       console.error('❌ Erro ao exportar dados:', error);
       set({ error: 'Erro ao exportar dados' });
     }
   },
 
-  validateDataIntegrity: () => {
+  validateDataIntegrity: async () => {
     try {
-      return localStore.verifyDataIntegrity();
+      const isValid = await excelStore.verifyDataIntegrity();
+      console.log('🔍 Integridade dos dados:', isValid ? '✅ Válida' : '❌ Inválida');
+      return isValid;
     } catch (error) {
       console.error('❌ Erro ao validar integridade:', error);
       return false;
