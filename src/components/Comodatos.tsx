@@ -1,8 +1,6 @@
-
 import { useState } from 'react';
 import { useComodatos } from '@/hooks/useComodatos';
 import { useClientes } from '@/hooks/useClientes';
-import { useProdutos } from '@/hooks/useProdutos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +14,6 @@ import { Plus, Handshake, Package, Edit, Trash2, DollarSign } from 'lucide-react
 const Comodatos = () => {
   const { comodatos, addComodato, updateComodato, deleteComodato } = useComodatos();
   const { clientes } = useClientes();
-  const { produtos } = useProdutos();
   const [editingComodato, setEditingComodato] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -41,6 +38,7 @@ const Comodatos = () => {
       quantidade_vendida: parseInt(formData.quantidade_vendida),
       quantidade_paga: parseInt(formData.quantidade_paga),
       observacoes: formData.observacoes,
+      data_comodato: new Date().toISOString().split('T')[0], // Adicionar data atual
     };
 
     if (editingComodato) {
