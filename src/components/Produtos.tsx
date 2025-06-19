@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
+import { useProdutos } from '@/hooks/useProdutos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, AlertTriangle, TrendingUp, Package } from 'lucide-react';
-import { Produto } from '@/lib/localStore';
+import type { Produto } from '@/lib/database-types';
 
 const Produtos = () => {
-  const { produtos, addProduto, updateProduto, deleteProduto } = useStore();
+  const { produtos, loading, addProduto, updateProduto, deleteProduto } = useProdutos();
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,20 +22,20 @@ const Produtos = () => {
     estoque_minimo: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const produtoData = {
       nome: formData.nome,
-      custo_producao: parseFloat(formData.custo_producao),
-      preco_sugerido: parseFloat(formData.preco_sugerido),
-      estoque_atual: parseInt(formData.estoque_atual),
-      estoque_minimo: parseInt(formData.estoque_minimo),
+      custo_producao: parseFloat(formData.custo_producao) || 0,
+      preco_sugerido: parseFloat(formData.preco_sugerido) || 0,
+      estoque_atual: parseInt(formData.estoque_atual) || 0,
+      estoque_minimo: parseInt(formData.estoque_minimo) || 0,
     };
 
     if (editingProduto) {
-      updateProduto(editingProduto.id, produtoData);
+      await updateProduto(editingProduto.id, produtoData);
     } else {
-      addProduto(produtoData);
+      await addProduto(produtoData);
     }
     resetForm();
   };
@@ -78,18 +78,26 @@ const Produtos = () => {
     return `${value.toFixed(1)}%`;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Produtos</h1>
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Produtos</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingProduto ? 'Editar Produto' : 'Novo Produto'}
@@ -164,11 +172,11 @@ const Produtos = () => {
                 </div>
               )}
 
-              <div className="flex space-x-2">
-                <Button type="submit">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <Button type="submit" className="w-full sm:w-auto">
                   {editingProduto ? 'Atualizar' : 'Salvar'}
                 </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
               </div>
@@ -177,13 +185,13 @@ const Produtos = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
         {produtos.map((produto) => (
-          <Card key={produto.id} className={produto.estoque_atual < produto.estoque_minimo ? 'border-red-200 bg-red-50' : ''}>
+          <Card key={produto.id} className={`h-fit ${produto.estoque_atual < produto.estoque_minimo ? 'border-red-200 bg-red-50' : ''}`}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="truncate">{produto.nome}</span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   {produto.estoque_atual < produto.estoque_minimo && (
                     <Badge variant="destructive" className="text-xs">
                       <AlertTriangle className="h-3 w-3 mr-1" />
