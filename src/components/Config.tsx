@@ -1,27 +1,91 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { localStore } from '@/lib/localStore';
+import { supabase } from '@/lib/supabase';
 import { Download, Upload, Trash2, RefreshCw } from 'lucide-react';
-import { useStore } from '@/store/useStore';
+import { useSupabaseStore } from '@/store/supabaseStore';
 
 const Config = () => {
-  const { loadData } = useStore();
+  const { loadAllData } = useSupabaseStore();
 
-  const handleExportData = () => {
-    localStore.exportData();
-  };
+  const handleExportData = async () => {
+    try {
+      // Buscar todos os dados do Supabase
+      const [
+        clientes,
+        produtos,
+        pedidos,
+        itensPedido,
+        fiados,
+        pagamentosFiado,
+        despesasEntradas,
+        comodatos,
+        eventos
+      ] = await Promise.all([
+        supabase.from('clientes').select('*'),
+        supabase.from('produtos').select('*'),
+        supabase.from('pedidos').select('*'),
+        supabase.from('itens_pedido').select('*'),
+        supabase.from('fiados').select('*'),
+        supabase.from('pagamentos_fiado').select('*'),
+        supabase.from('despesas_entradas').select('*'),
+        supabase.from('comodatos').select('*'),
+        supabase.from('eventos').select('*')
+      ]);
 
-  const handleClearData = () => {
-    if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita!')) {
-      localStorage.clear();
-      loadData();
-      alert('Dados limpos com sucesso!');
+      const exportData = {
+        clientes: clientes.data || [],
+        produtos: produtos.data || [],
+        pedidos: pedidos.data || [],
+        itens_pedido: itensPedido.data || [],
+        fiados: fiados.data || [],
+        pagamentos_fiado: pagamentosFiado.data || [],
+        despesas_entradas: despesasEntradas.data || [],
+        comodatos: comodatos.data || [],
+        eventos: eventos.data || []
+      };
+
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup_sistema_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert('Dados exportados com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+      alert('Erro ao exportar dados');
     }
   };
 
-  const handleReloadData = () => {
-    loadData();
+  const handleClearData = async () => {
+    if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita!')) {
+      try {
+        // Deletar dados em ordem para respeitar foreign keys
+        await supabase.from('itens_pedido').delete().neq('id', '');
+        await supabase.from('pagamentos_fiado').delete().neq('id', '');
+        await supabase.from('pedidos').delete().neq('id', '');
+        await supabase.from('fiados').delete().neq('id', '');
+        await supabase.from('comodatos').delete().neq('id', '');
+        await supabase.from('eventos').delete().neq('id', '');
+        await supabase.from('despesas_entradas').delete().neq('id', '');
+        await supabase.from('produtos').delete().neq('id', '');
+        await supabase.from('clientes').delete().neq('id', '');
+        
+        await loadAllData();
+        alert('Dados limpos com sucesso!');
+      } catch (error) {
+        console.error('Erro ao limpar dados:', error);
+        alert('Erro ao limpar dados');
+      }
+    }
+  };
+
+  const handleReloadData = async () => {
+    await loadAllData();
     alert('Dados recarregados!');
   };
 
@@ -30,27 +94,52 @@ const Config = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
         
-        // Validar se o arquivo tem a estrutura esperada
-        const expectedSheets = ['clientes', 'produtos', 'pedidos', 'itens_pedido', 'fiados', 'pagamentos_fiado', 'despesas_entradas', 'comodatos'];
-        const hasValidStructure = expectedSheets.every(sheet => Array.isArray(data[sheet]));
+        // Validar estrutura
+        const expectedTables = ['clientes', 'produtos', 'pedidos', 'itens_pedido', 'fiados', 'pagamentos_fiado', 'despesas_entradas', 'comodatos', 'eventos'];
+        const hasValidStructure = expectedTables.every(table => Array.isArray(data[table]));
         
         if (!hasValidStructure) {
           alert('Arquivo com formato inválido!');
           return;
         }
 
-        // Importar dados
-        Object.entries(data).forEach(([sheet, rows]) => {
-          localStore.write(sheet, rows as any[]);
-        });
+        // Importar dados respeitando ordem das foreign keys
+        if (data.clientes?.length > 0) {
+          await supabase.from('clientes').insert(data.clientes);
+        }
+        if (data.produtos?.length > 0) {
+          await supabase.from('produtos').insert(data.produtos);
+        }
+        if (data.pedidos?.length > 0) {
+          await supabase.from('pedidos').insert(data.pedidos);
+        }
+        if (data.itens_pedido?.length > 0) {
+          await supabase.from('itens_pedido').insert(data.itens_pedido);
+        }
+        if (data.fiados?.length > 0) {
+          await supabase.from('fiados').insert(data.fiados);
+        }
+        if (data.pagamentos_fiado?.length > 0) {
+          await supabase.from('pagamentos_fiado').insert(data.pagamentos_fiado);
+        }
+        if (data.despesas_entradas?.length > 0) {
+          await supabase.from('despesas_entradas').insert(data.despesas_entradas);
+        }
+        if (data.comodatos?.length > 0) {
+          await supabase.from('comodatos').insert(data.comodatos);
+        }
+        if (data.eventos?.length > 0) {
+          await supabase.from('eventos').insert(data.eventos);
+        }
 
-        loadData();
+        await loadAllData();
         alert('Dados importados com sucesso!');
       } catch (error) {
+        console.error('Erro ao importar:', error);
         alert('Erro ao importar dados. Verifique se o arquivo está no formato correto.');
       }
     };
@@ -58,9 +147,9 @@ const Config = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Configurações</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -120,7 +209,7 @@ const Config = () => {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Recarregue os dados do localStorage caso haja alguma inconsistência.
+              Recarregue os dados do Supabase caso haja alguma inconsistência.
             </p>
             <Button onClick={handleReloadData} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -155,9 +244,9 @@ const Config = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <p><strong>Versão:</strong> 1.0.0</p>
-              <p><strong>Armazenamento:</strong> LocalStorage</p>
-              <p><strong>Tipo:</strong> Sistema Offline</p>
+              <p><strong>Versão:</strong> 2.0.0</p>
+              <p><strong>Armazenamento:</strong> Supabase</p>
+              <p><strong>Tipo:</strong> Sistema Web em Nuvem</p>
             </div>
             <div>
               <p><strong>Navegador:</strong> {navigator.userAgent.split(' ')[0]}</p>
