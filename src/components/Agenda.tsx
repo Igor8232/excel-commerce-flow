@@ -34,6 +34,7 @@ const Agenda = () => {
     const eventoData = {
       ...formData,
       valor: formData.valor ? parseFloat(formData.valor) : undefined,
+      cliente_id: formData.cliente_id === 'none' ? undefined : formData.cliente_id,
       data_criacao: new Date().toISOString().split('T')[0]
     };
 
@@ -70,7 +71,7 @@ const Agenda = () => {
       hora_evento: evento.hora_evento || '',
       tipo: evento.tipo || 'Evento',
       status: evento.status,
-      cliente_id: evento.cliente_id || '',
+      cliente_id: evento.cliente_id || 'none',
       valor: evento.valor?.toString() || '',
       observacoes: evento.observacoes || '',
     });
@@ -194,12 +195,12 @@ const Agenda = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="cliente_id">Cliente (Opcional)</Label>
-                  <Select value={formData.cliente_id} onValueChange={(value) => setFormData({...formData, cliente_id: value})}>
+                  <Select value={formData.cliente_id || 'none'} onValueChange={(value) => setFormData({...formData, cliente_id: value === 'none' ? '' : value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecionar cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum cliente</SelectItem>
+                      <SelectItem value="none">Nenhum cliente</SelectItem>
                       {clientes.map((cliente) => (
                         <SelectItem key={cliente.id} value={cliente.id}>
                           {cliente.nome}
