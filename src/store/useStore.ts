@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import type { Cliente, Produto, Pedido, ItemPedido, Fiado, PagamentoFiado, DespesaEntrada, Comodato, Evento } from '@/lib/database-types';
@@ -38,6 +37,11 @@ interface Store {
   updateDespesaEntrada: (id: string, data: Partial<DespesaEntrada>) => Promise<void>;
   deleteDespesaEntrada: (id: string) => Promise<void>;
   calculateSaldo: () => number;
+
+  // Métodos do Store de Eventos
+  addEvento: (evento: Omit<Evento, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateEvento: (id: string, data: Partial<Evento>) => Promise<void>;
+  deleteEvento: (id: string) => Promise<void>;
   
   // Dashboard helpers
   getDashboardData: () => {
@@ -70,6 +74,7 @@ export const useStore = create<Store>((set, get) => ({
 
   loadData: async () => {
     set({ isLoading: true, error: null });
+    console.log('useStore: Carregando todos os dados...');
     
     try {
       const [
@@ -94,6 +99,13 @@ export const useStore = create<Store>((set, get) => ({
         supabase.from('eventos').select('*').order('data_evento')
       ]);
 
+      console.log('Dados carregados:', {
+        clientes: clientesResult.data?.length || 0,
+        produtos: produtosResult.data?.length || 0,
+        pedidos: pedidosResult.data?.length || 0,
+        eventos: eventosResult.data?.length || 0
+      });
+
       set({
         clientes: clientesResult.data || [],
         produtos: produtosResult.data || [],
@@ -117,7 +129,6 @@ export const useStore = create<Store>((set, get) => ({
 
   createPedido: async ({ cliente_id, itens }) => {
     try {
-      // Calcular valores totais
       const { produtos } = get();
       let valorTotal = 0;
       let valorLucro = 0;
@@ -138,7 +149,6 @@ export const useStore = create<Store>((set, get) => ({
         };
       });
 
-      // Criar pedido
       const { data: pedido, error: pedidoError } = await supabase
         .from('pedidos')
         .insert({
@@ -151,7 +161,6 @@ export const useStore = create<Store>((set, get) => ({
 
       if (pedidoError) throw pedidoError;
 
-      // Criar itens do pedido
       const itensParaInserir = itensComCalculo.map(item => ({
         ...item,
         pedido_id: pedido.id
@@ -163,7 +172,6 @@ export const useStore = create<Store>((set, get) => ({
 
       if (itensError) throw itensError;
 
-      // Recarregar dados
       await get().loadData();
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
@@ -262,14 +270,12 @@ export const useStore = create<Store>((set, get) => ({
 
   addPagamentoFiado: async (pagamento) => {
     try {
-      // Adicionar pagamento
       const { error: pagamentoError } = await supabase
         .from('pagamentos_fiado')
         .insert(pagamento);
 
       if (pagamentoError) throw pagamentoError;
 
-      // Buscar fiado atual
       const { data: fiado, error: fiadoError } = await supabase
         .from('fiados')
         .select('*')
@@ -278,11 +284,9 @@ export const useStore = create<Store>((set, get) => ({
 
       if (fiadoError) throw fiadoError;
 
-      // Calcular novos valores
       const novoValorPago = fiado.valor_pago + pagamento.valor_pagamento;
       const novoValorPendente = Math.max(0, fiado.valor_total - novoValorPago);
 
-      // Atualizar fiado
       const { error: updateError } = await supabase
         .from('fiados')
         .update({
@@ -302,6 +306,7 @@ export const useStore = create<Store>((set, get) => ({
 
   addDespesaEntrada: async (despesa) => {
     try {
+      console.log('useStore: Adicionando despesa/entrada', despesa);
       const { error } = await supabase
         .from('despesas_entradas')
         .insert(despesa);
@@ -316,6 +321,7 @@ export const useStore = create<Store>((set, get) => ({
 
   updateDespesaEntrada: async (id: string, data: Partial<DespesaEntrada>) => {
     try {
+      console.log('useStore: Atualizando despesa/entrada', id, data);
       const { error } = await supabase
         .from('despesas_entradas')
         .update(data)
@@ -331,6 +337,7 @@ export const useStore = create<Store>((set, get) => ({
 
   deleteDespesaEntrada: async (id: string) => {
     try {
+      console.log('useStore: Deletando despesa/entrada', id);
       const { error } = await supabase
         .from('despesas_entradas')
         .delete()
@@ -353,6 +360,53 @@ export const useStore = create<Store>((set, get) => ({
     const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
     
     return entradas + bonus - despesas + lucroTotal;
+  },
+
+  addEvento: async (evento) => {
+    try {
+      console.log('useStore: Adicionando evento', evento);
+      const { error } = await supabase
+        .from('eventos')
+        .insert(evento);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao adicionar evento:', error);
+      set({ error: 'Erro ao adicionar evento' });
+    }
+  },
+
+  updateEvento: async (id: string, data: Partial<Evento>) => {
+    try {
+      console.log('useStore: Atualizando evento', id, data);
+      const { error } = await supabase
+        .from('eventos')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao atualizar evento:', error);
+      set({ error: 'Erro ao atualizar evento' });
+    }
+  },
+
+  deleteEvento: async (id: string) => {
+    try {
+      console.log('useStore: Deletando evento', id);
+      const { error } = await supabase
+        .from('eventos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao excluir evento:', error);
+      set({ error: 'Erro ao excluir evento' });
+    }
   },
 
   getDashboardData: () => {

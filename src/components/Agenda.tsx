@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { useEventos } from '@/hooks/useEventos';
-import { useClientes } from '@/hooks/useClientes';
+import { useState, useEffect } from 'react';
+import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,13 +9,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, Edit, Trash2, Clock, MapPin, DollarSign } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { Evento } from '@/lib/database-types';
 
 const Agenda = () => {
-  const { eventos, addEvento, updateEvento, deleteEvento } = useEventos();
-  const { clientes } = useClientes();
+  const { clientes, eventos, loadData } = useStore();
+  const [localEventos, setLocalEventos] = useState<Evento[]>([]);
   const [editingEvento, setEditingEvento] = useState<Evento | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
@@ -29,21 +30,83 @@ const Agenda = () => {
     observacoes: '',
   });
 
+  useEffect(() => {
+    console.log('Agenda: Carregando dados iniciais');
+    loadData();
+    loadEventos();
+  }, [loadData]);
+
+  useEffect(() => {
+    console.log('Eventos do store atualizados:', eventos);
+    setLocalEventos(eventos);
+  }, [eventos]);
+
+  const loadEventos = async () => {
+    try {
+      console.log('Agenda: Carregando eventos do Supabase');
+      const { data, error } = await supabase
+        .from('eventos')
+        .select('*')
+        .order('data_evento');
+      
+      if (error) {
+        console.error('Erro ao carregar eventos:', error);
+        return;
+      }
+      
+      console.log('Eventos carregados:', data?.length || 0);
+      setLocalEventos((data || []) as Evento[]);
+    } catch (error) {
+      console.error('Erro no loadEventos:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const eventoData = {
-      ...formData,
-      valor: formData.valor ? parseFloat(formData.valor) : undefined,
-      cliente_id: formData.cliente_id === 'none' ? undefined : formData.cliente_id,
-      data_criacao: new Date().toISOString().split('T')[0]
-    };
+    setLoading(true);
+    
+    try {
+      console.log('Agenda: Salvando evento', formData);
+      
+      const eventoData = {
+        ...formData,
+        valor: formData.valor ? parseFloat(formData.valor) : undefined,
+        cliente_id: formData.cliente_id === 'none' ? undefined : formData.cliente_id,
+        data_criacao: new Date().toISOString().split('T')[0]
+      };
 
-    if (editingEvento) {
-      await updateEvento(editingEvento.id, eventoData);
-    } else {
-      await addEvento(eventoData);
+      if (editingEvento) {
+        console.log('Atualizando evento:', editingEvento.id);
+        const { data, error } = await supabase
+          .from('eventos')
+          .update(eventoData)
+          .eq('id', editingEvento.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        console.log('Evento atualizado:', data);
+      } else {
+        console.log('Criando novo evento');
+        const { data, error } = await supabase
+          .from('eventos')
+          .insert([eventoData])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        console.log('Evento criado:', data);
+      }
+      
+      await loadEventos();
+      await loadData();
+      resetForm();
+    } catch (error) {
+      console.error('Erro ao salvar evento:', error);
+      alert('Erro ao salvar evento. Verifique os dados e tente novamente.');
+    } finally {
+      setLoading(false);
     }
-    resetForm();
   };
 
   const resetForm = () => {
@@ -63,6 +126,7 @@ const Agenda = () => {
   };
 
   const handleEdit = (evento: Evento) => {
+    console.log('Editando evento:', evento);
     setEditingEvento(evento);
     setFormData({
       titulo: evento.titulo,
@@ -76,6 +140,27 @@ const Agenda = () => {
       observacoes: evento.observacoes || '',
     });
     setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja deletar este evento?')) return;
+    
+    try {
+      console.log('Deletando evento:', id);
+      const { error } = await supabase
+        .from('eventos')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      console.log('Evento deletado com sucesso');
+      await loadEventos();
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao deletar evento:', error);
+      alert('Erro ao deletar evento');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -104,11 +189,13 @@ const Agenda = () => {
     return cliente ? cliente.nome : '';
   };
 
-  const eventosOrdenados = [...eventos].sort((a, b) => {
+  const eventosOrdenados = [...localEventos].sort((a, b) => {
     const dataA = new Date(`${a.data_evento}T${a.hora_evento || '00:00'}`);
     const dataB = new Date(`${b.data_evento}T${b.hora_evento || '00:00'}`);
     return dataA.getTime() - dataB.getTime();
   });
+
+  console.log('Agenda renderizada com', localEventos.length, 'eventos');
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -248,8 +335,8 @@ const Agenda = () => {
               </div>
 
               <div className="flex space-x-2 pt-4">
-                <Button type="submit">
-                  {editingEvento ? 'Atualizar' : 'Salvar'}
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : (editingEvento ? 'Atualizar' : 'Salvar')}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
@@ -289,7 +376,7 @@ const Agenda = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => deleteEvento(evento.id)}
+                    onClick={() => handleDelete(evento.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -337,7 +424,7 @@ const Agenda = () => {
         ))}
       </div>
 
-      {eventos.length === 0 && (
+      {localEventos.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mb-4" />
