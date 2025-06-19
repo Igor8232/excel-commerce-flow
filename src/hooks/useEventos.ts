@@ -17,7 +17,7 @@ export const useEventos = () => {
         .order('data_evento');
       
       if (error) throw error;
-      setEventos(data || []);
+      setEventos((data || []) as Evento[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar eventos');
     } finally {
@@ -34,7 +34,7 @@ export const useEventos = () => {
         .single();
       
       if (error) throw error;
-      setEventos(prev => [...prev, data]);
+      setEventos(prev => [...prev, data as Evento]);
       return { success: true, data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao adicionar evento';
@@ -53,7 +53,7 @@ export const useEventos = () => {
         .single();
       
       if (error) throw error;
-      setEventos(prev => prev.map(e => e.id === id ? data : e));
+      setEventos(prev => prev.map(e => e.id === id ? data as Evento : e));
       return { success: true, data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar evento';

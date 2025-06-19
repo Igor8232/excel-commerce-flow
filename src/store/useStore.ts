@@ -33,6 +33,12 @@ interface Store {
   deleteFiado: (id: string) => Promise<void>;
   addPagamentoFiado: (pagamento: Omit<PagamentoFiado, 'id' | 'created_at'>) => Promise<void>;
   
+  // Métodos do Store de Despesas/Entradas
+  addDespesaEntrada: (despesa: Omit<DespesaEntrada, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateDespesaEntrada: (id: string, data: Partial<DespesaEntrada>) => Promise<void>;
+  deleteDespesaEntrada: (id: string) => Promise<void>;
+  calculateSaldo: () => number;
+  
   // Dashboard helpers
   getDashboardData: () => {
     saldo_total: number;
@@ -91,13 +97,13 @@ export const useStore = create<Store>((set, get) => ({
       set({
         clientes: clientesResult.data || [],
         produtos: produtosResult.data || [],
-        pedidos: pedidosResult.data || [],
+        pedidos: (pedidosResult.data || []) as Pedido[],
         itensPedido: itensPedidoResult.data || [],
         fiados: fiadosResult.data || [],
         pagamentosFiado: pagamentosFiadoResult.data || [],
-        despesasEntradas: despesasEntradasResult.data || [],
+        despesasEntradas: (despesasEntradasResult.data || []) as DespesaEntrada[],
         comodatos: comodatosResult.data || [],
-        eventos: eventosResult.data || [],
+        eventos: (eventosResult.data || []) as Evento[],
         isLoading: false
       });
     } catch (error) {
@@ -292,6 +298,61 @@ export const useStore = create<Store>((set, get) => ({
       console.error('Erro ao registrar pagamento:', error);
       set({ error: 'Erro ao registrar pagamento' });
     }
+  },
+
+  addDespesaEntrada: async (despesa) => {
+    try {
+      const { error } = await supabase
+        .from('despesas_entradas')
+        .insert(despesa);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao adicionar despesa/entrada:', error);
+      set({ error: 'Erro ao adicionar despesa/entrada' });
+    }
+  },
+
+  updateDespesaEntrada: async (id: string, data: Partial<DespesaEntrada>) => {
+    try {
+      const { error } = await supabase
+        .from('despesas_entradas')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao atualizar despesa/entrada:', error);
+      set({ error: 'Erro ao atualizar despesa/entrada' });
+    }
+  },
+
+  deleteDespesaEntrada: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('despesas_entradas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().loadData();
+    } catch (error) {
+      console.error('Erro ao excluir despesa/entrada:', error);
+      set({ error: 'Erro ao excluir despesa/entrada' });
+    }
+  },
+
+  calculateSaldo: () => {
+    const { pedidos, despesasEntradas } = get();
+    
+    const lucroTotal = pedidos.reduce((sum, p) => sum + (p.valor_lucro || 0), 0);
+    const entradas = despesasEntradas.filter(d => d.tipo === 'Entradas').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const bonus = despesasEntradas.filter(d => d.tipo === 'Bônus').reduce((sum, d) => sum + (d.valor || 0), 0);
+    const despesas = despesasEntradas.filter(d => d.tipo === 'Despesas').reduce((sum, d) => sum + (d.valor || 0), 0);
+    
+    return entradas + bonus - despesas + lucroTotal;
   },
 
   getDashboardData: () => {

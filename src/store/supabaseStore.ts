@@ -79,13 +79,13 @@ export const useSupabaseStore = create<SupabaseStore>((set, get) => ({
       set({
         clientes: clientesResult.data || [],
         produtos: produtosResult.data || [],
-        pedidos: pedidosResult.data || [],
+        pedidos: (pedidosResult.data || []) as Pedido[],
         itensPedido: itensPedidoResult.data || [],
         fiados: fiadosResult.data || [],
         pagamentosFiado: pagamentosFiadoResult.data || [],
-        despesasEntradas: despesasEntradasResult.data || [],
+        despesasEntradas: (despesasEntradasResult.data || []) as DespesaEntrada[],
         comodatos: comodatosResult.data || [],
-        eventos: eventosResult.data || [],
+        eventos: (eventosResult.data || []) as Evento[],
         isLoading: false
       });
     } catch (error) {

@@ -17,7 +17,7 @@ export const useDespesasEntradas = () => {
         .order('data_registro', { ascending: false });
       
       if (error) throw error;
-      setDespesasEntradas(data || []);
+      setDespesasEntradas((data || []) as DespesaEntrada[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar despesas/entradas');
     } finally {
@@ -34,7 +34,7 @@ export const useDespesasEntradas = () => {
         .single();
       
       if (error) throw error;
-      setDespesasEntradas(prev => [data, ...prev]);
+      setDespesasEntradas(prev => [data as DespesaEntrada, ...prev]);
       return { success: true, data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao adicionar despesa/entrada';
@@ -53,7 +53,7 @@ export const useDespesasEntradas = () => {
         .single();
       
       if (error) throw error;
-      setDespesasEntradas(prev => prev.map(d => d.id === id ? data : d));
+      setDespesasEntradas(prev => prev.map(d => d.id === id ? data as DespesaEntrada : d));
       return { success: true, data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar despesa/entrada';
