@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
+import { useEventos } from '@/hooks/useEventos';
+import { useClientes } from '@/hooks/useClientes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, Edit, Trash2, Clock, MapPin, DollarSign } from 'lucide-react';
-import { Evento } from '@/lib/localStore';
+import type { Evento } from '@/lib/database-types';
 
 const Agenda = () => {
-  const { eventos, clientes, addEvento, updateEvento, deleteEvento } = useStore();
+  const { eventos, addEvento, updateEvento, deleteEvento } = useEventos();
+  const { clientes } = useClientes();
   const [editingEvento, setEditingEvento] = useState<Evento | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,19 +29,18 @@ const Agenda = () => {
     observacoes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const eventoData = {
+      ...formData,
+      valor: formData.valor ? parseFloat(formData.valor) : undefined,
+      data_criacao: new Date().toISOString().split('T')[0]
+    };
+
     if (editingEvento) {
-      updateEvento(editingEvento.id, {
-        ...formData,
-        valor: formData.valor ? parseFloat(formData.valor) : undefined,
-      });
+      await updateEvento(editingEvento.id, eventoData);
     } else {
-      addEvento({
-        ...formData,
-        valor: formData.valor ? parseFloat(formData.valor) : undefined,
-        data_criacao: new Date().toISOString().split('T')[0]
-      });
+      await addEvento(eventoData);
     }
     resetForm();
   };
@@ -64,10 +65,10 @@ const Agenda = () => {
     setEditingEvento(evento);
     setFormData({
       titulo: evento.titulo,
-      descricao: evento.descricao,
+      descricao: evento.descricao || '',
       data_evento: evento.data_evento,
-      hora_evento: evento.hora_evento,
-      tipo: evento.tipo,
+      hora_evento: evento.hora_evento || '',
+      tipo: evento.tipo || 'Evento',
       status: evento.status,
       cliente_id: evento.cliente_id || '',
       valor: evento.valor?.toString() || '',
@@ -109,11 +110,11 @@ const Agenda = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Calendar className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Agenda</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Agenda</h1>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -267,8 +268,8 @@ const Agenda = () => {
                   <div className="flex flex-col">
                     <span className="text-lg">{evento.titulo}</span>
                     <div className="flex items-center space-x-2 mt-1">
-                      <Badge className={getTipoColor(evento.tipo)}>
-                        {evento.tipo}
+                      <Badge className={getTipoColor(evento.tipo || 'Evento')}>
+                        {evento.tipo || 'Evento'}
                       </Badge>
                       <Badge className={getStatusColor(evento.status)}>
                         {evento.status}
@@ -340,14 +341,10 @@ const Agenda = () => {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500 mb-4">Nenhum evento na agenda</p>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Evento
-                </Button>
-              </DialogTrigger>
-            </Dialog>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Primeiro Evento
+            </Button>
           </CardContent>
         </Card>
       )}

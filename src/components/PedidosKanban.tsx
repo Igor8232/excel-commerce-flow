@@ -1,10 +1,9 @@
 
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, User, Calendar, DollarSign } from 'lucide-react';
-import { Pedido } from '@/lib/localStore';
+import type { Pedido } from '@/lib/database-types';
 
 const statusConfig = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800', bgColor: 'bg-yellow-50' },
