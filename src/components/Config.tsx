@@ -1,7 +1,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Download, Upload, Trash2, RefreshCw } from 'lucide-react';
 import { useSupabaseStore } from '@/store/supabaseStore';
 
@@ -65,15 +65,15 @@ const Config = () => {
     if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita!')) {
       try {
         // Deletar dados em ordem para respeitar foreign keys
-        await supabase.from('itens_pedido').delete().neq('id', '');
-        await supabase.from('pagamentos_fiado').delete().neq('id', '');
-        await supabase.from('pedidos').delete().neq('id', '');
-        await supabase.from('fiados').delete().neq('id', '');
-        await supabase.from('comodatos').delete().neq('id', '');
-        await supabase.from('eventos').delete().neq('id', '');
-        await supabase.from('despesas_entradas').delete().neq('id', '');
-        await supabase.from('produtos').delete().neq('id', '');
-        await supabase.from('clientes').delete().neq('id', '');
+        await supabase.from('itens_pedido').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('pagamentos_fiado').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('pedidos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('fiados').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('comodatos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('eventos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('despesas_entradas').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('produtos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('clientes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         
         await loadAllData();
         alert('Dados limpos com sucesso!');
